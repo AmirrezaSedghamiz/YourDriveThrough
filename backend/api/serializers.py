@@ -77,3 +77,9 @@ class SignupSerializer(serializers.Serializer):
             "access_token": str(refresh.access_token),
             "refresh_token": str(refresh),
         }
+
+
+class RestaurantProfileSerializer(serializers.ModelSerializer): 
+    class Meta: 
+        model = Restaurant 
+        fields = ["name", "address", "latitude", "longitude", "image"]
