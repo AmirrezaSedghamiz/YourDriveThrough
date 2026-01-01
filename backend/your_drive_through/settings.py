@@ -47,6 +47,8 @@ REST_FRAMEWORK = {
     )
 }
 
+AUTH_USER_MODEL = "api.User"
+
 AUTHENTICATION_BACKENDS = [
     "api.authentication.PhoneBackend",
 ]
