@@ -5,6 +5,8 @@ from .serializers import LoginSerializer
 from .serializers import SignupSerializer
 from .serializers import RestaurantProfileSerializer
 from .serializers import ClosestRestaurantsSerializer
+from .serializers import RestaurantInfoSerializer
+from .serializers import RestaurantImageSerializer
 from .models import Restaurant
 from .utils import haversine
 
@@ -80,3 +82,36 @@ class GetClosestRestaurantsView(APIView):
         ids = [r[0] for r in selected]
 
         return Response({"restaurant_ids": ids}, status=status.HTTP_200_OK)
+
+
+class GetRestaurantInfoView(APIView):
+    def post(self, request):
+        restaurant_id = request.data.get("restaurant_id")
+        if not restaurant_id:
+            return Response({"error": "restaurant_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            restaurant = Restaurant.objects.get(id=restaurant_id)
+        except Restaurant.DoesNotExist:
+            return Response({"error": "Restaurant not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = RestaurantInfoSerializer(restaurant)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class GetRestaurantImageView(APIView):
+    def post(self, request):
+        restaurant_id = request.data.get("restaurant_id")
+        if not restaurant_id:
+            return Response({"error": "restaurant_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            restaurant = Restaurant.objects.get(id=restaurant_id)
+        except Restaurant.DoesNotExist:
+            return Response({"error": "Restaurant not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if not restaurant.image:
+            return Response({"error": "No image available"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = RestaurantImageSerializer(restaurant)
+        return Response(serializer.data, status=status.HTTP_200_OK)
