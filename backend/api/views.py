@@ -4,7 +4,9 @@ from rest_framework import status, permissions
 from .serializers import LoginSerializer
 from .serializers import SignupSerializer
 from .serializers import RestaurantProfileSerializer
+from .serializers import ClosestRestaurantsSerializer
 from .models import Restaurant
+from .utils import haversine
 
 class LoginView(APIView):
     def post(self, request):
@@ -32,7 +34,7 @@ class CompleteRestaurantProfileView(APIView):
         except Restaurant.DoesNotExist:
             return Response({"error": "Access violation: not a restaurant"}, status=status.HTTP_403_FORBIDDEN)
 
-        serializer = RestaurantProfileSerializer(restaurant, data=request.data)  # no partial=True
+        serializer = RestaurantProfileSerializer(restaurant, data=request.data)
         if serializer.is_valid():
             serializer.save()
             profile_complete = all([
@@ -48,3 +50,33 @@ class CompleteRestaurantProfileView(APIView):
             }, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+class GetClosestRestaurantsView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = ClosestRestaurantsSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        lat = serializer.validated_data["latitude"]
+        lon = serializer.validated_data["longitude"]
+        index = serializer.validated_data["index"]
+        count = serializer.validated_data["count"]
+
+        restaurants = Restaurant.objects.exclude(latitude=None).exclude(longitude=None)
+
+        # Compute distances
+        distances = []
+        for r in restaurants:
+            dist = haversine(lat, lon, float(r.latitude), float(r.longitude))
+            distances.append((r.id, dist))
+
+        # Sort by distance
+        distances.sort(key=lambda x: x[1])
+
+        # Apply pagination
+        selected = distances[index:index+count]
+        ids = [r[0] for r in selected]
+
+        return Response({"restaurant_ids": ids}, status=status.HTTP_200_OK)

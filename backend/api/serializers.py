@@ -83,3 +83,10 @@ class RestaurantProfileSerializer(serializers.ModelSerializer):
     class Meta: 
         model = Restaurant 
         fields = ["name", "address", "latitude", "longitude", "image"]
+
+
+class ClosestRestaurantsSerializer(serializers.Serializer):
+    latitude = serializers.FloatField()
+    longitude = serializers.FloatField()
+    index = serializers.IntegerField(min_value=0)
+    count = serializers.IntegerField(min_value=1, max_value=50)
