@@ -45,6 +45,7 @@ class MenuItem(models.Model):
     price = models.IntegerField()
     expected_duration = models.TimeField()
     categories = models.ManyToManyField(Category, related_name="items")
+    image = models.ImageField()
 
 
 class Report(models.Model):
