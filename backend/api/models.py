@@ -46,6 +46,7 @@ class MenuItem(models.Model):
     expected_duration = models.TimeField()
     categories = models.ManyToManyField(Category, related_name="items")
     image = models.ImageField()
+    is_active = models.BooleanField(default=True)
 
 
 class Report(models.Model):
