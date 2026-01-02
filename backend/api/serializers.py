@@ -79,10 +79,21 @@ class SignupSerializer(serializers.Serializer):
         }
 
 
-class RestaurantProfileSerializer(serializers.ModelSerializer): 
-    class Meta: 
-        model = Restaurant 
-        fields = ["name", "address", "latitude", "longitude", "image"]
+class RestaurantSerializer(serializers.ModelSerializer):
+    profile_complete = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Restaurant
+        fields = ["id", "name", "address", "latitude", "longitude", "image", "profile_complete"]
+
+    def get_profile_complete(self, obj):
+        return all([
+            bool(obj.name),
+            bool(obj.address),
+            obj.latitude is not None,
+            obj.longitude is not None,
+            bool(obj.image)
+        ])
 
 
 class ClosestRestaurantsSerializer(serializers.Serializer):
@@ -90,26 +101,3 @@ class ClosestRestaurantsSerializer(serializers.Serializer):
     longitude = serializers.FloatField()
     index = serializers.IntegerField(min_value=0)
     count = serializers.IntegerField(min_value=1, max_value=50)
-
-
-class RestaurantInfoSerializer(serializers.ModelSerializer):
-    profile_complete = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Restaurant
-        fields = ["id", "name", "address", "latitude", "longitude", "profile_complete"]
-
-    def get_profile_complete(self, obj):
-        return all([
-            obj.name,
-            obj.address,
-            obj.latitude,
-            obj.longitude,
-            obj.image
-        ])
-
-
-class RestaurantImageSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Restaurant
-        fields = ["id", "image"]

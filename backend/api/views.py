@@ -3,10 +3,8 @@ from rest_framework.response import Response
 from rest_framework import status, permissions
 from .serializers import LoginSerializer
 from .serializers import SignupSerializer
-from .serializers import RestaurantProfileSerializer
+from .serializers import RestaurantSerializer
 from .serializers import ClosestRestaurantsSerializer
-from .serializers import RestaurantInfoSerializer
-from .serializers import RestaurantImageSerializer
 from .models import Restaurant
 from .utils import haversine
 
@@ -34,21 +32,17 @@ class CompleteRestaurantProfileView(APIView):
         try:
             restaurant = Restaurant.objects.get(user=request.user)
         except Restaurant.DoesNotExist:
-            return Response({"error": "Access violation: not a restaurant"}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"error": "Access violation: not a restaurant"},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
-        serializer = RestaurantProfileSerializer(restaurant, data=request.data)
+        serializer = RestaurantSerializer(restaurant, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            profile_complete = all([
-                restaurant.name,
-                restaurant.address,
-                restaurant.latitude,
-                restaurant.longitude,
-                restaurant.image
-            ])
             return Response({
                 "message": "Profile updated successfully",
-                "profile_complete": profile_complete
+                "profile_complete": serializer.data["profile_complete"]
             }, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -72,46 +66,15 @@ class GetClosestRestaurantsView(APIView):
         distances = []
         for r in restaurants:
             dist = haversine(lat, lon, float(r.latitude), float(r.longitude))
-            distances.append((r.id, dist))
+            distances.append((r, dist))
 
         # Sort by distance
         distances.sort(key=lambda x: x[1])
 
         # Apply pagination
         selected = distances[index:index+count]
-        ids = [r[0] for r in selected]
+        selected_restaurants = [r[0] for r in selected]
 
-        return Response({"restaurant_ids": ids}, status=status.HTTP_200_OK)
-
-
-class GetRestaurantInfoView(APIView):
-    def post(self, request):
-        restaurant_id = request.data.get("restaurant_id")
-        if not restaurant_id:
-            return Response({"error": "restaurant_id is required"}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            restaurant = Restaurant.objects.get(id=restaurant_id)
-        except Restaurant.DoesNotExist:
-            return Response({"error": "Restaurant not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        serializer = RestaurantInfoSerializer(restaurant)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-class GetRestaurantImageView(APIView):
-    def post(self, request):
-        restaurant_id = request.data.get("restaurant_id")
-        if not restaurant_id:
-            return Response({"error": "restaurant_id is required"}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            restaurant = Restaurant.objects.get(id=restaurant_id)
-        except Restaurant.DoesNotExist:
-            return Response({"error": "Restaurant not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        if not restaurant.image:
-            return Response({"error": "No image available"}, status=status.HTTP_404_NOT_FOUND)
-
-        serializer = RestaurantImageSerializer(restaurant)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        # Serialize full info
+        serializer = RestaurantSerializer(selected_restaurants, many=True)
+        return Response({"restaurants": serializer.data}, status=status.HTTP_200_OK)
