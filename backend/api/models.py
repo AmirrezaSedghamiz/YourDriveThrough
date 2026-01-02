@@ -41,7 +41,7 @@ class Category(models.Model):
 class MenuItem(models.Model):
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
-    describtion = models.CharField(max_length=1024)
+    description = models.CharField(max_length=1024)
     price = models.IntegerField()
     expected_duration = models.TimeField()
     categories = models.ManyToManyField(Category, related_name="items")
