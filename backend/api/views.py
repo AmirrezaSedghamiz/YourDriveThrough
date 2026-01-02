@@ -6,6 +6,7 @@ from .serializers import SignupSerializer
 from .serializers import RestaurantSerializer
 from .serializers import ClosestRestaurantsSerializer
 from .serializers import CategorySerializer
+from .serializers import MenuItemSerializer
 from .models import Restaurant, Category
 from .utils import haversine
 
@@ -88,3 +89,30 @@ class GetCategoriesView(APIView):
         categories = Category.objects.all()
         serializer = CategorySerializer(categories, many=True)
         return Response({"categories": serializer.data}, status=status.HTTP_200_OK)
+
+
+class SaveMenuItemView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        try:
+            restaurant = Restaurant.objects.get(user=request.user)
+        except Restaurant.DoesNotExist:
+            return Response(
+                {"error": "Access violation: not a restaurant"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        data = request.data.copy()
+        data["restaurant"] = restaurant.id  # enforce ownership
+
+        serializer = MenuItemSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                {"message": "Menu item created successfully", "item": serializer.data},
+                status=status.HTTP_201_CREATED
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+

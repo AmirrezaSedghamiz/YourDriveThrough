@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import Customer, Restaurant, Category
+from .models import Customer, Restaurant, Category, MenuItem
 from .exceptions import RoleNotFound
 from django.contrib.auth import get_user_model
 
@@ -107,3 +107,19 @@ class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ["id", "name"]
+
+
+class MenuItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MenuItem
+        fields = [
+            "id",
+            "restaurant",
+            "name",
+            "describtion",
+            "price",
+            "expected_duration",
+            "categories",
+            "image",
+        ]
+
