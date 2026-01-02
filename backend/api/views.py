@@ -5,7 +5,8 @@ from .serializers import LoginSerializer
 from .serializers import SignupSerializer
 from .serializers import RestaurantSerializer
 from .serializers import ClosestRestaurantsSerializer
-from .models import Restaurant
+from .serializers import CategorySerializer
+from .models import Restaurant, Category
 from .utils import haversine
 
 class LoginView(APIView):
@@ -78,3 +79,12 @@ class GetClosestRestaurantsView(APIView):
         # Serialize full info
         serializer = RestaurantSerializer(selected_restaurants, many=True)
         return Response({"restaurants": serializer.data}, status=status.HTTP_200_OK)
+
+
+class GetCategoriesView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        categories = Category.objects.all()
+        serializer = CategorySerializer(categories, many=True)
+        return Response({"categories": serializer.data}, status=status.HTTP_200_OK)

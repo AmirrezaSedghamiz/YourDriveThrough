@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import Customer, Restaurant
+from .models import Customer, Restaurant, Category
 from .exceptions import RoleNotFound
 from django.contrib.auth import get_user_model
 
@@ -101,3 +101,9 @@ class ClosestRestaurantsSerializer(serializers.Serializer):
     longitude = serializers.FloatField()
     index = serializers.IntegerField(min_value=0)
     count = serializers.IntegerField(min_value=1, max_value=50)
+
+
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ["id", "name"]
