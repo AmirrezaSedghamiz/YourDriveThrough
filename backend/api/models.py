@@ -63,3 +63,9 @@ class Rating(models.Model):
 class Review(models.Model):
     rating = models.OneToOneField(Rating, on_delete=models.CASCADE)
     describtion = models.CharField(max_length=1024)
+
+class OrderItem(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE)
+    item = models.ForeignKey(MenuItem, on_delete=models.CASCADE)
+    quantity = models.IntegerField()
+    special = models.CharField(max_length=1024)
