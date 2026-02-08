@@ -1,9 +1,10 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from rest_framework_simplejwt.tokens import RefreshToken
-from .models import Customer, Restaurant, Category, MenuItem
-from .exceptions import RoleNotFound
 from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.tokens import RefreshToken
+from .models import Customer, Restaurant, Category, MenuItem, Order, OrderItem
+from .exceptions import RoleNotFound
+
 
 User = get_user_model()
 
@@ -123,3 +124,73 @@ class MenuItemSerializer(serializers.ModelSerializer):
             "image",
         ]
 
+
+class OrderItemCreateSerializer(serializers.Serializer):
+    menu_item = serializers.IntegerField()
+    quantity = serializers.IntegerField(min_value=1)
+    special = serializers.CharField(required=False, allow_blank=True)
+
+
+class OrderCreateSerializer(serializers.ModelSerializer):
+    items = OrderItemCreateSerializer(many=True)
+
+    class Meta:
+        model = Order
+        fields = ("restaurant", "items")
+
+    def validate(self, data):
+        items = data["items"]
+        restaurant = data["restaurant"]
+
+        menu_items = MenuItem.objects.filter(
+            id__in=[i["menu_item"] for i in items],
+            is_active=True,
+            restaurant=restaurant,
+        )
+
+        if menu_items.count() != len(items):
+            raise serializers.ValidationError(
+                "All items must belong to the restaurant and be active."
+            )
+
+        return data
+
+    def create(self, validated_data):
+        items_data = validated_data.pop("items")
+        restaurant = validated_data["restaurant"]
+
+        total = 0
+        max_duration = None
+
+        menu_items = {
+            item.id: item
+            for item in MenuItem.objects.filter(
+                id__in=[i["menu_item"] for i in items_data]
+            )
+        }
+
+        for item in items_data:
+            menu_item = menu_items[item["menu_item"]]
+            qty = item["quantity"]
+
+            total += menu_item.price * qty
+
+            if not max_duration or menu_item.expected_duration > max_duration:
+                max_duration = menu_item.expected_duration
+
+        order = Order.objects.create(
+            restaurant=restaurant,
+            expected_duration=max_duration,
+            total=total,
+            **validated_data,
+        )
+
+        for item in items_data:
+            OrderItem.objects.create(
+                order=order,
+                item=menu_items[item["menu_item"]],
+                quantity=item["quantity"],
+                special=item.get("special", ""),
+            )
+
+        return order

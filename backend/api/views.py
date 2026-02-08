@@ -1,14 +1,19 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
+from rest_framework import generics
 from .serializers import LoginSerializer
 from .serializers import SignupSerializer
 from .serializers import RestaurantSerializer
 from .serializers import ClosestRestaurantsSerializer
 from .serializers import CategorySerializer
 from .serializers import MenuItemSerializer
-from .models import Restaurant, Category
+from django.db import transaction
+from django.utils import timezone
+from .models import Restaurant, Category, Customer
 from .utils import haversine
+from .serializers import OrderCreateSerializer
+
 
 class LoginView(APIView):
     def post(self, request):
@@ -116,3 +121,16 @@ class SaveMenuItemView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class OrderCreateView(generics.CreateAPIView):
+    serializer_class = OrderCreateSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        customer = Customer.objects.get(user=self.request.user)
+
+        with transaction.atomic():
+            serializer.save(
+                customer=customer,
+                status="pending",
+                created_at=timezone.now(),
+            )
