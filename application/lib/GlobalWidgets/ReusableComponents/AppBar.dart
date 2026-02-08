@@ -5,13 +5,15 @@ import 'package:flutter/material.dart';
 class AppAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final bool showBack;
+  final bool centerTitle;
   final List<Widget>? actions;
   final Widget? bottom;
 
   const AppAppBar({
     super.key,
     required this.title,
-    this.showBack = false,
+    required this.showBack,
+    required this.centerTitle,
     this.actions,
     this.bottom,
   });

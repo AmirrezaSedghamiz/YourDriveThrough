@@ -1,7 +1,9 @@
 import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
 import 'package:application/GlobalWidgets/AppTheme/Theme.dart';
 import 'package:application/GlobalWidgets/NavigationServices/NavigationService.dart';
+import 'package:application/GlobalWidgets/Services/Map.dart';
 import 'package:application/Handlers/SharePreferencesManager.dart';
+import 'package:application/MainProgram/Customer/Dashboard.dart';
 import 'package:application/MainProgram/Login/Login.dart';
 import 'package:application/MainProgram/SplashScreen/SplashScreen.dart';
 import 'package:flutter/foundation.dart';
@@ -40,7 +42,9 @@ class MyApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       // home: SplashScreen(),
       // home: OnBoardingScreen(),
-      home: LoginPage(),
+      home: MapBuilder(),
+      // home: LoginPage(),
+      // home: Dashboard(initialPage: 0),
     );
   }
 }

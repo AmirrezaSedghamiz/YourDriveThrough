@@ -8,7 +8,7 @@ import 'package:application/SourceDesign/Enums/AccountTypes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
-import 'package:application/MainProgram/Login/LoginViewModel.dart' hide LoginViewModel, loginViewModelProvider;
+import 'package:application/MainProgram/Login/LoginViewModel.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
