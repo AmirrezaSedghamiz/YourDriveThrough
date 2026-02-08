@@ -1,5 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
 from rest_framework import status, permissions
 from rest_framework import generics
 from .serializers import LoginSerializer
@@ -10,9 +11,10 @@ from .serializers import CategorySerializer
 from .serializers import MenuItemSerializer
 from django.db import transaction
 from django.utils import timezone
-from .models import Restaurant, Category, Customer
+from .models import Restaurant, Category, Customer, Order
 from .utils import haversine
 from .serializers import OrderCreateSerializer
+from .serializers import OrderReadSerializer
 
 
 class LoginView(APIView):
@@ -134,3 +136,25 @@ class OrderCreateView(generics.CreateAPIView):
                 status="pending",
                 created_at=timezone.now(),
             )
+
+
+class ActiveRestaurantOrdersView(generics.ListAPIView):
+    serializer_class = OrderReadSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        try:
+            restaurant = Restaurant.objects.get(user=self.request.user)
+        except Restaurant.DoesNotExist:
+            raise PermissionDenied("Only restaurants can access this endpoint.")
+
+        return (
+            Order.objects
+            .filter(
+                restaurant=restaurant,
+                status__in=["pending", "accepted", "preparing"],
+            )
+            .select_related("customer")
+            .prefetch_related("orderitem_set__item")
+            .order_by("-created_at")
+        )

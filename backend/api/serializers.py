@@ -194,3 +194,31 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             )
 
         return order
+
+
+class OrderItemReadSerializer(serializers.ModelSerializer):
+    item_name = serializers.CharField(source="item.name", read_only=True)
+
+    class Meta:
+        model = OrderItem
+        fields = ("id", "item_name", "quantity", "special")
+
+
+class OrderReadSerializer(serializers.ModelSerializer):
+    items = OrderItemReadSerializer(
+        source="orderitem_set", many=True, read_only=True
+    )
+
+    customer_id = serializers.IntegerField(source="customer.id", read_only=True)
+
+    class Meta:
+        model = Order
+        fields = (
+            "id",
+            "customer_id",
+            "status",
+            "created_at",
+            "expected_duration",
+            "total",
+            "items",
+        )
