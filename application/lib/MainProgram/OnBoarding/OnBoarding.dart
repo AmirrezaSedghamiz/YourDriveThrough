@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:application/GlobalWidgets/Colors.dart';
+import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
 import 'package:application/Handlers/TokenHandler.dart';
 import 'package:application/MainProgram/OnBoarding/SubPages/OnBoarding1.dart';
 import 'package:application/MainProgram/OnBoarding/SubPages/OnBoarding2.dart';
@@ -27,28 +27,14 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
     super.dispose();
   }
 
-  @override
-  void initState() {
-    SystemChrome.setSystemUIOverlayStyle(
-      SystemUiOverlayStyle(
-        systemNavigationBarColor: whiteColor,
-        systemNavigationBarContrastEnforced:
-            false, // 👈 important for Android 14/15
-        systemNavigationBarIconBrightness: Brightness.dark,
-        statusBarIconBrightness: Brightness.dark,
-      ),
-    );
-    super.initState();
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: whiteColor,
+      backgroundColor: AppColors.white,
       body: SafeArea(
         child: Scaffold(
-          backgroundColor: whiteColor,
+          backgroundColor: AppColors.white,
           body: Stack(
             children: [
               ScrollConfiguration(
@@ -86,8 +72,8 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
                       effect: SlideEffect(
                         dotHeight: 6,
                         dotWidth: 32,
-                        activeDotColor: primaryColor,
-                        dotColor: coalColor.withOpacity(0.5),
+                        activeDotColor: AppColors.primary,
+                        dotColor: AppColors.coal.withOpacity(0.5),
                         // type: WormType.thin, // Keeps dot size consistent
                       ),
                     ),
@@ -113,7 +99,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
                           );
                         },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
+                    backgroundColor: AppColors.primary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),

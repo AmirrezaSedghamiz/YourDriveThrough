@@ -1,4 +1,4 @@
-import 'package:application/GlobalWidgets/Colors.dart';
+import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
@@ -109,7 +109,7 @@ class _SplashScreenState extends State<SplashScreen>
                   Text(
                     "DriveOrder",
                     style: Theme.of(context).textTheme.bodyLarge!.copyWith(
-                      color: whiteColor,
+                      color: AppColors.white,
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
                     ),
@@ -118,14 +118,14 @@ class _SplashScreenState extends State<SplashScreen>
                   Text(
                     "Drive-Through Made Easy",
                     style: Theme.of(context).textTheme.headlineLarge!
-                        .copyWith(color: whiteColor.withOpacity(0.8)),
+                        .copyWith(color: AppColors.white.withOpacity(0.8)),
                   ),
                   SizedBox(height: 16),
                   Text(
                     "Order ahead, skip the wait.\nYour food ready when you arrive.",
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyLarge!.copyWith(
-                      color: whiteColor.withOpacity(0.7),
+                      color: AppColors.white.withOpacity(0.7),
                     ),
                   ),
                   SizedBox(height: 150,
@@ -134,14 +134,14 @@ class _SplashScreenState extends State<SplashScreen>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         LoadingAnimationWidget.staggeredDotsWave(
-                          color: whiteColor.withOpacity(0.7),
+                          color: AppColors.white.withOpacity(0.7),
                           size: 60,
                         ),
                         Text(
                           "Loading your experience",
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.bodyLarge!.copyWith(
-                            color: whiteColor.withOpacity(0.7),
+                            color: AppColors.white.withOpacity(0.7),
                           ),
                         ),
                       ],
@@ -178,7 +178,7 @@ class _SplashScreenState extends State<SplashScreen>
                       "Version 1.0.0",
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                        color: whiteColor.withOpacity(0.7),
+                        color: AppColors.white.withOpacity(0.7),
                       ),
                     ),
                   ],
@@ -199,11 +199,11 @@ class _SplashScreenState extends State<SplashScreen>
           width: 50,
           height: 50,
           decoration: BoxDecoration(
-            color: whiteColor.withOpacity(0.2),
+            color: AppColors.white.withOpacity(0.2),
             shape: BoxShape.circle,
           ),
           child: Center(
-            child: Icon(icon, color: whiteColor.withOpacity(0.8), size: 30),
+            child: Icon(icon, color: AppColors.white.withOpacity(0.8), size: 30),
           ),
         ),
         SizedBox(height: 6),
@@ -212,7 +212,7 @@ class _SplashScreenState extends State<SplashScreen>
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyMedium!.copyWith(
             fontSize: 12,
-            color: whiteColor.withOpacity(0.7),
+            color: AppColors.white.withOpacity(0.7),
           ),
         ),
       ],

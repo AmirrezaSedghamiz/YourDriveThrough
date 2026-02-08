@@ -24,9 +24,9 @@ class $AssetsOnBoardingImagesGen {
   AssetGenImage get page3 =>
       const AssetGenImage('assets/OnBoardingImages/Page3.png');
 
-  /// File path: assets/OnBoardingImages/Page4.png
+  /// File path: assets/OnBoardingImages/page4.png
   AssetGenImage get page4 =>
-      const AssetGenImage('assets/OnBoardingImages/Page4.png');
+      const AssetGenImage('assets/OnBoardingImages/page4.png');
 
   /// List of all assets
   List<AssetGenImage> get values => [page1, page2, page3, page4];

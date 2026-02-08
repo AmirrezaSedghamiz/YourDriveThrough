@@ -1,34 +1,29 @@
-import 'package:application/GlobalWidgets/Colors.dart';
+// Updated Login.dart using reusable components
+import 'package:application/GlobalWidgets/ReusableComponents/Buttons.dart';
+import 'package:application/GlobalWidgets/ReusableComponents/CheckBox.dart';
+import 'package:application/GlobalWidgets/ReusableComponents/TabSwitch.dart';
+import 'package:application/GlobalWidgets/ReusableComponents/TextFields.dart';
+import 'package:application/MainProgram/Login/LoginState.dart';
+import 'package:application/SourceDesign/Enums/AccountTypes.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
+import 'package:application/MainProgram/Login/LoginViewModel.dart';
 
-class LoginPage extends StatefulWidget {
+class LoginPage extends ConsumerStatefulWidget {
+  const LoginPage({super.key});
+
   @override
-  _LoginPageState createState() => _LoginPageState();
+  ConsumerState<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage>
+class _LoginPageState extends ConsumerState<LoginPage>
     with SingleTickerProviderStateMixin {
   final TextEditingController _nameControllerSignUp = TextEditingController();
-  final TextEditingController _passwordControllerSignUp =
-      TextEditingController();
+  final TextEditingController _passwordControllerSignUp = TextEditingController();
   final TextEditingController _nameControllerSignIn = TextEditingController();
-  final TextEditingController _passwordControllerSignIn =
-      TextEditingController();
-  final TextEditingController _confirmPasswordControllerSignUp =
-      TextEditingController();
-  bool _isPasswordVisible = false;
-  bool _isPasswordVisibleSignIn = false;
-  bool _isConfirmPasswordVisible = false;
-  bool _isInSignIn = true;
-  bool isCustomer = true;
-  bool rememberMe = false;
-  AccountType? _selectedType;
-
-  void onChanged(AccountType? type) {
-    setState(() {
-      isCustomer = type == AccountType.customer;
-    });
-  }
+  final TextEditingController _passwordControllerSignIn = TextEditingController();
+  final TextEditingController _confirmPasswordControllerSignUp = TextEditingController();
 
   late AnimationController _animationController;
   late Animation<double> _slideAnimation;
@@ -37,14 +32,12 @@ class _LoginPageState extends State<LoginPage>
   @override
   void initState() {
     super.initState();
-    _selectedType = AccountType.customer;
-    // Initialize animation controller
+    
     _animationController = AnimationController(
       duration: Duration(milliseconds: 300),
       vsync: this,
     );
 
-    // Setup animations
     _slideAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
@@ -56,8 +49,24 @@ class _LoginPageState extends State<LoginPage>
 
   @override
   Widget build(BuildContext context) {
+    final state = ref.watch(loginViewModelProvider);
+    final viewModel = ref.read(loginViewModelProvider.notifier);
+
+    // Show snackbars when event occurs
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (state.snackBarMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(state.snackBarMessage!),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        viewModel.clearSnackBar();
+      }
+    });
+
     return Scaffold(
-      backgroundColor: whiteColor,
+      backgroundColor: AppColors.white,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -74,12 +83,11 @@ class _LoginPageState extends State<LoginPage>
                         Center(
                           child: Column(
                             children: [
-                              // Logo placeholder - replace with actual logo asset
                               Container(
                                 width: 60,
                                 height: 60,
                                 decoration: BoxDecoration(
-                                  color: primaryColor,
+                                  color: AppColors.primary,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Icon(
@@ -103,7 +111,7 @@ class _LoginPageState extends State<LoginPage>
                                 style: TextStyle(
                                   fontWeight: FontWeight.w400,
                                   fontSize: 16,
-                                  color: coalColor,
+                                  color: AppColors.coal,
                                 ),
                               ),
                             ],
@@ -113,72 +121,74 @@ class _LoginPageState extends State<LoginPage>
                         SizedBox(height: 20),
 
                         /// --- Tab Switch ---
-                        buildTabSwitch(),
+                        AppTabSwitch(
+                          value: state.isInSignIn,
+                          onChanged: (value) {
+                            if ((value && !state.isInSignIn) || 
+                                (!value && state.isInSignIn)) {
+                              viewModel.toggleSignInSignUp();
+                            }
+                          },
+                          leftLabel: "Sign In",
+                          rightLabel: "Sign Up",
+                        ),
 
                         SizedBox(height: 24),
 
-                        /// --- Form Content with Expanded to push button to bottom ---
-                        /// --- Form Content with Expanded to push button to bottom ---
+                        /// --- Form Content ---
                         Expanded(
                           child: AnimatedCrossFade(
                             duration: Duration(milliseconds: 300),
-                            firstChild: signIn(),
-                            secondChild: signUp(),
-                            crossFadeState: _isInSignIn
+                            firstChild: signIn(state, viewModel),
+                            secondChild: signUp(state, viewModel),
+                            crossFadeState: state.isInSignIn
                                 ? CrossFadeState.showFirst
                                 : CrossFadeState.showSecond,
                             firstCurve: Curves.easeInOut,
                             secondCurve: Curves.easeInOut,
-                            layoutBuilder:
-                                (
-                                  Widget topChild,
-                                  Key topChildKey,
-                                  Widget bottomChild,
-                                  Key bottomChildKey,
-                                ) {
-                                  return Stack(
-                                    clipBehavior: Clip.none,
-                                    children: [
-                                      Positioned.fill(
-                                        key: bottomChildKey,
-                                        child: bottomChild,
-                                      ),
-                                      Positioned.fill(
-                                        key: topChildKey,
-                                        child: topChild,
-                                      ),
-                                    ],
-                                  );
-                                },
+                            layoutBuilder: (
+                              Widget topChild,
+                              Key topChildKey,
+                              Widget bottomChild,
+                              Key bottomChildKey,
+                            ) {
+                              return Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  Positioned.fill(
+                                    key: bottomChildKey,
+                                    child: bottomChild,
+                                  ),
+                                  Positioned.fill(
+                                    key: topChildKey,
+                                    child: topChild,
+                                  ),
+                                ],
+                              );
+                            },
                           ),
                         ),
 
                         SizedBox(height: 24),
 
                         /// --- BUTTON ALWAYS AT BOTTOM ---
-                        SizedBox(
-                          width: double.infinity,
-                          height: 56,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              _isInSignIn ? _handleSignIn() : _createAccount();
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primaryColor,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 0,
-                            ),
-                            child: Text(
-                              _isInSignIn ? "Sign In" : "Create Account",
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
+                        AppButton(
+                          text: state.isInSignIn ? "Sign In" : "Create Account",
+                          onPressed: () {
+                            if (state.isInSignIn) {
+                              viewModel.signIn(
+                                username: _nameControllerSignIn.text,
+                                password: _passwordControllerSignIn.text,
+                              );
+                            } else {
+                              viewModel.signUp(
+                                username: _nameControllerSignUp.text,
+                                password: _passwordControllerSignUp.text,
+                                confirmPassword: _confirmPasswordControllerSignUp.text,
+                              );
+                            }
+                          },
+                          variant: AppButtonVariant.primary,
                         ),
                       ],
                     ),
@@ -192,528 +202,89 @@ class _LoginPageState extends State<LoginPage>
     );
   }
 
-  Widget buildTabSwitch() {
-    return Container(
-      width: MediaQuery.of(context).size.width - 64 / 412,
-      height: 54,
-      decoration: BoxDecoration(
-        color: lightGrayColor.withOpacity(0.4),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(4.0),
-        child: Stack(
-          children: [
-            // Animated indicator background - now with fade effect
-            AnimatedOpacity(
-              duration: Duration(milliseconds: 200),
-              opacity: 1.0,
-              child: AnimatedContainer(
-                duration: Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-                margin: EdgeInsets.only(
-                  left: _isInSignIn
-                      ? 0
-                      : (MediaQuery.of(context).size.width - 64 / 412) / 2 - 28,
-                ),
-                width: (MediaQuery.of(context).size.width - 64 / 412) / 2 - 32,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: whiteColor,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 6,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Tab buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      if (!_isInSignIn) {
-                        setState(() {
-                          _isInSignIn = true;
-                        });
-                      }
-                    },
-                    child: Container(
-                      height: 46,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Center(
-                        child: AnimatedDefaultTextStyle(
-                          duration: Duration(milliseconds: 200),
-                          curve: Curves.easeInOut,
-                          style: Theme.of(context).textTheme.bodyLarge!
-                              .copyWith(
-                                color: _isInSignIn
-                                    ? primaryColor
-                                    : Colors.black45,
-                                fontWeight: _isInSignIn
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
-                                shadows: _isInSignIn
-                                    ? [
-                                        Shadow(
-                                          color: primaryColor.withOpacity(0.2),
-                                          blurRadius: 4,
-                                          offset: Offset(0, 1),
-                                        ),
-                                      ]
-                                    : [],
-                              ),
-                          child: Text("Sign In"),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(width: 4),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      if (_isInSignIn) {
-                        setState(() {
-                          _isInSignIn = false;
-                        });
-                      }
-                    },
-                    child: Container(
-                      height: 46,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Center(
-                        child: AnimatedDefaultTextStyle(
-                          duration: Duration(milliseconds: 200),
-                          curve: Curves.easeInOut,
-                          style: Theme.of(context).textTheme.bodyLarge!
-                              .copyWith(
-                                color: !_isInSignIn
-                                    ? primaryColor
-                                    : Colors.black45,
-                                fontWeight: !_isInSignIn
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
-                                shadows: !_isInSignIn
-                                    ? [
-                                        Shadow(
-                                          color: primaryColor.withOpacity(0.2),
-                                          blurRadius: 4,
-                                          offset: Offset(0, 1),
-                                        ),
-                                      ]
-                                    : [],
-                              ),
-                          child: Text("Sign Up"),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget signIn() {
+  Widget signIn(LoginState state, LoginViewModel viewModel) {
     return Column(
       key: ValueKey('signIn'),
       children: [
-        AnimatedOpacity(
-          duration: Duration(milliseconds: 400),
-          curve: Curves.easeInOut,
-          opacity: 1.0,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  "Username",
-                  style: Theme.of(context).textTheme!.bodyMedium,
-                ),
-              ),
-              SizedBox(height: 8),
-              TextField(
-                controller: _nameControllerSignIn,
-                decoration: InputDecoration(
-                  hintText: 'Enter your Username',
-                  hintStyle: TextStyle(
-                    fontWeight: FontWeight.w400,
-                    color: coalColor,
-                  ),
-                  prefixIcon: Icon(Icons.person, color: coalColor),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: coalColor),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: coalColor),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: primaryColor),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        AppTextField(
+          controller: _nameControllerSignIn,
+          labelText: "Username",
+          hintText: 'Enter your Username',
+          prefixIcon: Icon(Icons.person, color: AppColors.coal),
         ),
-
         SizedBox(height: 16),
-
-        AnimatedOpacity(
-          duration: Duration(milliseconds: 400),
-          curve: Curves.easeInOut,
-          opacity: 1.0,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  "Password",
-                  style: Theme.of(context).textTheme!.bodyMedium,
-                ),
-              ),
-              SizedBox(height: 8),
-              TextField(
-                controller: _passwordControllerSignIn,
-                obscureText: !_isPasswordVisibleSignIn,
-                decoration: InputDecoration(
-                  hintText: 'Enter your password',
-                  hintStyle: TextStyle(
-                    fontWeight: FontWeight.w400,
-                    color: coalColor,
-                  ),
-                  prefixIcon: Icon(Icons.lock, color: coalColor),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _isPasswordVisibleSignIn
-                          ? Icons.visibility
-                          : Icons.visibility_off,
-                      color: coalColor,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _isPasswordVisibleSignIn = !_isPasswordVisibleSignIn;
-                      });
-                    },
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: coalColor),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: coalColor),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: primaryColor),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        AppPasswordField(
+          controller: _passwordControllerSignIn,
+          labelText: "Password",
+          hintText: 'Enter your password',
+          onChanged: (value) {},
         ),
-
         SizedBox(height: 12),
-        AnimatedOpacity(
-          duration: Duration(milliseconds: 400),
-          curve: Curves.easeInOut,
-          opacity: 1.0,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              buildCheckbox("Remember me", rememberMe, () {
-                setState(() {
-                  rememberMe = !rememberMe;
-                });
-              }),
-              TextButton(
-                onPressed: () {},
-                child: Text(
-                  "Forgot password?",
-                  style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: primaryColor,
-                  ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            AppCheckbox(
+              label: "Remember me",
+              value: state.rememberMe,
+              onChanged: (_) => viewModel.toggleRememberMe(),
+            ),
+            TextButton(
+              onPressed: () {},
+              child: Text(
+                "Forgot password?",
+                style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  Widget signUp() {
+  Widget signUp(LoginState state, LoginViewModel viewModel) {
     return Column(
       key: ValueKey('signUp'),
       children: [
-        AnimatedOpacity(
-          duration: Duration(milliseconds: 400),
-          curve: Curves.easeInOut,
-          opacity: 1.0,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  "Username",
-                  style: Theme.of(context).textTheme!.bodyMedium,
-                ),
-              ),
-              SizedBox(height: 8),
-              TextField(
-                controller: _nameControllerSignUp,
-                decoration: InputDecoration(
-                  hintText: 'Enter a Username',
-                  hintStyle: TextStyle(
-                    fontWeight: FontWeight.w400,
-                    color: coalColor,
-                  ),
-                  prefixIcon: Icon(Icons.person, color: coalColor),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: coalColor),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: coalColor),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: primaryColor),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        AppTextField(
+          controller: _nameControllerSignUp,
+          labelText: "Username",
+          hintText: 'Enter a Username',
+          prefixIcon: Icon(Icons.person, color: AppColors.coal),
         ),
-
         SizedBox(height: 16),
-
-        AnimatedOpacity(
-          duration: Duration(milliseconds: 400),
-          curve: Curves.easeInOut,
-          opacity: 1.0,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  "Password",
-                  style: Theme.of(context).textTheme!.bodyMedium,
-                ),
-              ),
-              SizedBox(height: 8),
-              TextField(
-                controller: _passwordControllerSignUp,
-                obscureText: !_isPasswordVisible,
-                decoration: InputDecoration(
-                  hintText: 'Create a password',
-                  hintStyle: TextStyle(
-                    fontWeight: FontWeight.w400,
-                    color: coalColor,
-                  ),
-                  prefixIcon: Icon(Icons.lock, color: coalColor),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _isPasswordVisible
-                          ? Icons.visibility
-                          : Icons.visibility_off,
-                      color: coalColor,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _isPasswordVisible = !_isPasswordVisible;
-                      });
-                    },
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: coalColor),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: coalColor),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: primaryColor),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        AppPasswordField(
+          controller: _passwordControllerSignUp,
+          labelText: "Password",
+          hintText: 'Create a password',
+          onChanged: (value) {},
         ),
-
         SizedBox(height: 16),
-
-        AnimatedOpacity(
-          duration: Duration(milliseconds: 400),
-          curve: Curves.easeInOut,
-          opacity: 1.0,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  "Confirm Password",
-                  style: Theme.of(context).textTheme!.bodyMedium,
-                ),
-              ),
-              SizedBox(height: 8),
-              TextField(
-                controller: _confirmPasswordControllerSignUp,
-                obscureText: !_isConfirmPasswordVisible,
-                decoration: InputDecoration(
-                  hintText: 'Confirm your password',
-                  hintStyle: TextStyle(
-                    fontWeight: FontWeight.w400,
-                    color: coalColor,
-                  ),
-                  prefixIcon: Icon(Icons.lock, color: coalColor),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _isConfirmPasswordVisible
-                          ? Icons.visibility
-                          : Icons.visibility_off,
-                      color: coalColor,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
-                      });
-                    },
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: coalColor),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: coalColor),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: primaryColor),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        AppPasswordField(
+          controller: _confirmPasswordControllerSignUp,
+          labelText: "Confirm Password",
+          hintText: 'Confirm your password',
+          onChanged: (value) {},
         ),
-
         SizedBox(height: 12),
-        AnimatedOpacity(
-          duration: Duration(milliseconds: 400),
-          curve: Curves.easeInOut,
-          opacity: 1.0,
-          child: checkBoxes(context),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            AppCheckbox(
+              label: "As Customer",
+              value: state.selectedType == AccountType.customer,
+              onChanged: (_) => viewModel.selectAccountType(AccountType.customer),
+            ),
+            AppCheckbox(
+              label: "As Restaurant",
+              value: state.selectedType == AccountType.restaurant,
+              onChanged: (_) => viewModel.selectAccountType(AccountType.restaurant),
+            ),
+          ],
         ),
       ],
-    );
-  }
-
-  void _select(AccountType type) {
-    setState(() {
-      _selectedType = type;
-      onChanged(type);
-    });
-  }
-
-  Widget checkBoxes(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        buildCheckbox(
-          "As Customer",
-          _selectedType == AccountType.customer,
-          () => _select(AccountType.customer),
-        ),
-        buildCheckbox(
-          "As Restaurant",
-          _selectedType == AccountType.restaurant,
-          () => _select(AccountType.restaurant),
-        ),
-      ],
-    );
-  }
-
-  Widget buildCheckbox(String label, bool isSelected, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Checkbox(
-            value: isSelected,
-            onChanged: (_) => onTap(),
-            activeColor: primaryColor,
-          ),
-          Text(label, style: Theme.of(context).textTheme.bodyMedium),
-        ],
-      ),
-    );
-  }
-
-  void _handleSignIn() {
-    // Add your sign in logic here
-    String name = _nameControllerSignIn.text;
-    String password = _passwordControllerSignIn.text;
-
-    if (name.isEmpty || password.isEmpty) {
-      _showSnackBar('Please fill in all fields');
-      return;
-    }
-
-    _showSnackBar('Signed in successfully!');
-  }
-
-  void _createAccount() {
-    // Add your account creation logic here
-    String name = _nameControllerSignUp.text;
-    String password = _passwordControllerSignUp.text;
-    String confirmPassword = _confirmPasswordControllerSignUp.text;
-
-    if (name.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
-      _showSnackBar('Please fill in all fields');
-      return;
-    }
-
-    if (password != confirmPassword) {
-      _showSnackBar('Passwords do not match');
-      return;
-    }
-
-    // Proceed with account creation
-    _showSnackBar('Account created successfully!');
-  }
-
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), duration: Duration(seconds: 2)),
     );
   }
 
@@ -728,5 +299,3 @@ class _LoginPageState extends State<LoginPage>
     super.dispose();
   }
 }
-
-enum AccountType { customer, restaurant }
