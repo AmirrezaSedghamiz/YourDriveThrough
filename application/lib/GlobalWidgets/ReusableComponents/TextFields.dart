@@ -16,6 +16,7 @@ class AppTextField extends StatelessWidget {
   final bool enabled;
   final int? maxLines;
   final bool isRequired;
+  final String? errorText;
 
   const AppTextField({
     super.key,
@@ -31,6 +32,7 @@ class AppTextField extends StatelessWidget {
     this.enabled = true,
     this.maxLines = 1,
     this.isRequired = false,
+    this.errorText,
   });
 
   @override
@@ -66,6 +68,7 @@ class AppTextField extends StatelessWidget {
                 hintText: hintText,
                 prefixIcon: prefixIcon,
                 suffixIcon: suffixIcon,
+                errorText: errorText
               ),
         ),
       ],
@@ -81,6 +84,7 @@ class AppPasswordField extends StatefulWidget {
   final ValueChanged<String>? onChanged;
   final FormFieldValidator<String>? validator;
   final bool enabled;
+  final String? errorText;
 
   const AppPasswordField({
     super.key,
@@ -89,6 +93,7 @@ class AppPasswordField extends StatefulWidget {
     this.hintText = 'Enter your password',
     this.onChanged,
     this.validator,
+    this.errorText,
     this.enabled = true,
   });
 
@@ -105,6 +110,7 @@ class _AppPasswordFieldState extends State<AppPasswordField> {
       controller: widget.controller,
       labelText: widget.labelText,
       hintText: widget.hintText,
+      errorText: widget.errorText,
       obscureText: _obscureText,
       prefixIcon: const Icon(Icons.lock, color: AppColors.coal),
       suffixIcon: IconButton(

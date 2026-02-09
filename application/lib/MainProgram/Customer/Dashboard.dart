@@ -3,15 +3,15 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 
-class Dashboard extends StatefulWidget {
+class DashboardCustomer extends StatefulWidget {
   final int initialPage;
-  const Dashboard({super.key, required this.initialPage});
+  const DashboardCustomer({super.key, required this.initialPage});
 
   @override
-  State<Dashboard> createState() => _DashboardState();
+  State<DashboardCustomer> createState() => _DashboardCustomerState();
 }
 
-class _DashboardState extends State<Dashboard> {
+class _DashboardCustomerState extends State<DashboardCustomer> {
   late final PageController _pageController;
   late int _selectedIndex;
   DateTime? _lastPressedTime; // Just track the last press time

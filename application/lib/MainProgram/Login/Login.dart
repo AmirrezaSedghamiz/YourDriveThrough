@@ -1,9 +1,13 @@
 // Updated Login.dart using reusable components
+import 'package:application/GlobalWidgets/NavigationServices/RouteFactory.dart';
 import 'package:application/GlobalWidgets/ReusableComponents/Buttons.dart';
 import 'package:application/GlobalWidgets/ReusableComponents/CheckBox.dart';
 import 'package:application/GlobalWidgets/ReusableComponents/TabSwitch.dart';
 import 'package:application/GlobalWidgets/ReusableComponents/TextFields.dart';
+import 'package:application/GlobalWidgets/Services/Map.dart';
+import 'package:application/MainProgram/Customer/Dashboard.dart';
 import 'package:application/MainProgram/Login/LoginState.dart';
+import 'package:application/MainProgram/Manager/DashboardManager.dart';
 import 'package:application/SourceDesign/Enums/AccountTypes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,10 +24,13 @@ class LoginPage extends ConsumerStatefulWidget {
 class _LoginPageState extends ConsumerState<LoginPage>
     with SingleTickerProviderStateMixin {
   final TextEditingController _nameControllerSignUp = TextEditingController();
-  final TextEditingController _passwordControllerSignUp = TextEditingController();
+  final TextEditingController _passwordControllerSignUp =
+      TextEditingController();
   final TextEditingController _nameControllerSignIn = TextEditingController();
-  final TextEditingController _passwordControllerSignIn = TextEditingController();
-  final TextEditingController _confirmPasswordControllerSignUp = TextEditingController();
+  final TextEditingController _passwordControllerSignIn =
+      TextEditingController();
+  final TextEditingController _confirmPasswordControllerSignUp =
+      TextEditingController();
 
   late AnimationController _animationController;
   late Animation<double> _slideAnimation;
@@ -32,7 +39,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
   @override
   void initState() {
     super.initState();
-    
+
     _animationController = AnimationController(
       duration: Duration(milliseconds: 300),
       vsync: this,
@@ -51,152 +58,131 @@ class _LoginPageState extends ConsumerState<LoginPage>
   Widget build(BuildContext context) {
     final state = ref.watch(loginViewModelProvider);
     final viewModel = ref.read(loginViewModelProvider.notifier);
-
-    // Show snackbars when event occurs
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (state.snackBarMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(state.snackBarMessage!),
-            duration: Duration(seconds: 2),
-          ),
-        );
-        viewModel.clearSnackBar();
+    ref.listen<LoginState>(loginViewModelProvider, (prev, next) {
+      final wasLoggedIn = prev?.logInSuccessful ?? false;
+      final isLoggedIn = next.logInSuccessful;
+      final role = next.selectedType;
+      if (!wasLoggedIn && isLoggedIn) {
+        role == AccountType.customer
+            ? AppRoutes.fade(DashboardCustomer(initialPage: 0))
+            : next.isProfileComplete
+            ? AppRoutes.fade(DashboardManager())
+            : AppRoutes.fade(MapBuilder());
       }
     });
-
     return Scaffold(
       backgroundColor: AppColors.white,
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: IntrinsicHeight(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        /// --- Page header ---
-                        Center(
-                          child: Column(
-                            children: [
-                              Container(
-                                width: 60,
-                                height: 60,
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Icon(
-                                  Icons.drive_eta,
-                                  color: Colors.white,
-                                  size: 32,
-                                ),
-                              ),
-                              SizedBox(height: 16),
-                              Text(
-                                'DriveThru',
-                                style: TextStyle(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black,
-                                ),
-                              ),
-                              SizedBox(height: 8),
-                              Text(
-                                'Order ahead, skip the wait',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w400,
-                                  fontSize: 16,
-                                  color: AppColors.coal,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        SizedBox(height: 20),
-
-                        /// --- Tab Switch ---
-                        AppTabSwitch(
-                          value: state.isInSignIn,
-                          onChanged: (value) {
-                            if ((value && !state.isInSignIn) || 
-                                (!value && state.isInSignIn)) {
-                              viewModel.toggleSignInSignUp();
-                            }
-                          },
-                          leftLabel: "Sign In",
-                          rightLabel: "Sign Up",
-                        ),
-
-                        SizedBox(height: 24),
-
-                        /// --- Form Content ---
-                        Expanded(
-                          child: AnimatedCrossFade(
-                            duration: Duration(milliseconds: 300),
-                            firstChild: signIn(state, viewModel),
-                            secondChild: signUp(state, viewModel),
-                            crossFadeState: state.isInSignIn
-                                ? CrossFadeState.showFirst
-                                : CrossFadeState.showSecond,
-                            firstCurve: Curves.easeInOut,
-                            secondCurve: Curves.easeInOut,
-                            layoutBuilder: (
-                              Widget topChild,
-                              Key topChildKey,
-                              Widget bottomChild,
-                              Key bottomChildKey,
-                            ) {
-                              return Stack(
-                                clipBehavior: Clip.none,
-                                children: [
-                                  Positioned.fill(
-                                    key: bottomChildKey,
-                                    child: bottomChild,
-                                  ),
-                                  Positioned.fill(
-                                    key: topChildKey,
-                                    child: topChild,
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                        ),
-
-                        SizedBox(height: 24),
-
-                        /// --- BUTTON ALWAYS AT BOTTOM ---
-                        AppButton(
-                          text: state.isInSignIn ? "Sign In" : "Create Account",
-                          onPressed: () {
-                            if (state.isInSignIn) {
-                              viewModel.signIn(
-                                username: _nameControllerSignIn.text,
-                                password: _passwordControllerSignIn.text,
-                              );
-                            } else {
-                              viewModel.signUp(
-                                username: _nameControllerSignUp.text,
-                                password: _passwordControllerSignUp.text,
-                                confirmPassword: _confirmPasswordControllerSignUp.text,
-                              );
-                            }
-                          },
-                          variant: AppButtonVariant.primary,
-                        ),
-                      ],
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            24,
+            32,
+            24,
+            0,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              /// --- Page header ---
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.max,
+                  children: [
+                    Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.drive_eta,
+                        color: Colors.white,
+                        size: 32,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'DriveThru',
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Order ahead, skip the wait',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w400,
+                        fontSize: 16,
+                        color: AppColors.coal,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            );
-          },
+          
+              const SizedBox(height: 20),
+          
+              /// --- Tab Switch ---
+              AppTabSwitch(
+                value: state.isInSignIn,
+                onChanged: (value) {
+                  if ((value && !state.isInSignIn) ||
+                      (!value && state.isInSignIn)) {
+                    viewModel.toggleSignInSignUp();
+                  }
+                },
+                leftLabel: "Sign In",
+                rightLabel: "Sign Up",
+              ),
+          
+              const SizedBox(height: 24),
+
+              /// --- Form Content ---
+              /// IMPORTANT: No custom Stack/Positioned.fill inside a scroll view.
+              AnimatedCrossFade(
+                duration: const Duration(milliseconds: 300),
+                firstChild: signIn(state, viewModel),
+                secondChild: signUp(state, viewModel),
+                crossFadeState: state.isInSignIn
+                    ? CrossFadeState.showFirst
+                    : CrossFadeState.showSecond,
+                firstCurve: Curves.easeInOut,
+                secondCurve: Curves.easeInOut,
+              ),
+          
+              const SizedBox(height: 24),
+              if(state.isInSignIn)
+              SizedBox(height: MediaQuery.of(context).size.height * 0.125,),
+              /// --- BUTTON ---
+              AppButton(
+                text: state.isInSignIn ? "Sign In" : "Create Account",
+                onPressed: () {
+                  if (state.isInSignIn) {
+                    viewModel.logIn(
+                      username: _nameControllerSignIn.text,
+                      password: _passwordControllerSignIn.text,
+                    );
+                  } else {
+                    viewModel.signUp(
+                      username: _nameControllerSignUp.text,
+                      password: _passwordControllerSignUp.text,
+                      confirmPassword:
+                          _confirmPasswordControllerSignUp.text,
+                      role: state.selectedType,
+                    );
+                  }
+                },
+                variant: AppButtonVariant.primary,
+              ),
+          
+              const SizedBox(height: 12),
+            ],
+          ),
         ),
       ),
     );
@@ -211,6 +197,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
           labelText: "Username",
           hintText: 'Enter your Username',
           prefixIcon: Icon(Icons.person, color: AppColors.coal),
+          errorText: state.errorLogInName,
         ),
         SizedBox(height: 16),
         AppPasswordField(
@@ -218,16 +205,18 @@ class _LoginPageState extends ConsumerState<LoginPage>
           labelText: "Password",
           hintText: 'Enter your password',
           onChanged: (value) {},
+          errorText: state.errorLogInPassword,
         ),
         SizedBox(height: 12),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            AppCheckbox(
-              label: "Remember me",
-              value: state.rememberMe,
-              onChanged: (_) => viewModel.toggleRememberMe(),
-            ),
+            SizedBox(),
+            // AppCheckbox(
+            //   label: "Remember me",
+            //   value: state.rememberMe,
+            //   onChanged: (_) => viewModel.toggleRememberMe(),
+            // ),
             TextButton(
               onPressed: () {},
               child: Text(
@@ -253,6 +242,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
           labelText: "Username",
           hintText: 'Enter a Username',
           prefixIcon: Icon(Icons.person, color: AppColors.coal),
+          errorText: state.errorSignUpName,
         ),
         SizedBox(height: 16),
         AppPasswordField(
@@ -267,6 +257,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
           labelText: "Confirm Password",
           hintText: 'Confirm your password',
           onChanged: (value) {},
+          errorText: state.errorSignUpConfirm,
         ),
         SizedBox(height: 12),
         Row(
@@ -275,12 +266,14 @@ class _LoginPageState extends ConsumerState<LoginPage>
             AppCheckbox(
               label: "As Customer",
               value: state.selectedType == AccountType.customer,
-              onChanged: (_) => viewModel.selectAccountType(AccountType.customer),
+              onChanged: (_) =>
+                  viewModel.selectAccountType(AccountType.customer),
             ),
             AppCheckbox(
               label: "As Restaurant",
               value: state.selectedType == AccountType.restaurant,
-              onChanged: (_) => viewModel.selectAccountType(AccountType.restaurant),
+              onChanged: (_) =>
+                  viewModel.selectAccountType(AccountType.restaurant),
             ),
           ],
         ),

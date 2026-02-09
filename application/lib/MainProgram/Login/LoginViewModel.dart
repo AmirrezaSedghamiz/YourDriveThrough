@@ -1,3 +1,5 @@
+import 'package:application/GlobalWidgets/InternetManager/ConnectionStates.dart';
+import 'package:application/Handlers/Repository/LoginRepo.dart';
 import 'package:application/MainProgram/Login/LoginState.dart';
 import 'package:application/SourceDesign/Enums/AccountTypes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,64 +29,77 @@ class LoginViewModel extends Notifier<LoginState> {
   }
 
   void toggleSignInSignUp() {
-    state = state.copyWith(
-      isInSignIn: !state.isInSignIn,
-    );
+    state = state.copyWith(isInSignIn: !state.isInSignIn);
   }
 
   void toggleRememberMe() {
-    state = state.copyWith(
-      rememberMe: !state.rememberMe,
-    );
+    state = state.copyWith(rememberMe: !state.rememberMe);
   }
 
   void selectAccountType(AccountType type) {
-    state = state.copyWith(
-      selectedType: type,
-    );
+    state = state.copyWith(selectedType: type);
   }
 
-  void signIn({required String username, required String password}) {
-    if (username.isEmpty || password.isEmpty) {
-      state = state.copyWith(
-        snackBarMessage: 'Please fill in all fields',
-      );
-      return;
-    }
-
-    // Add your actual sign-in logic here
-    state = state.copyWith(
-      snackBarMessage: 'Signed in successfully!',
-    );
-  }
-
-  void signUp({
+  Future<void> signUp({
     required String username,
     required String password,
     required String confirmPassword,
-  }) {
-    if (username.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
-      state = state.copyWith(
-        snackBarMessage: 'Please fill in all fields',
-      );
+    required AccountType? role,
+  }) async {
+    if (username.isEmpty || password.isEmpty) {
+      state = state.copyWith(errorSignUpName: 'Please fill in all fields');
       return;
     }
-
+    if (role == null) {
+      state = state.copyWith(errorSignUpName: 'Please select a role');
+      return;
+    }
     if (password != confirmPassword) {
       state = state.copyWith(
-        snackBarMessage: 'Passwords do not match',
+        errorSignUpConfirm: 'Must be the same as your password',
       );
       return;
     }
 
-    // Add your actual sign-up logic here
-    state = state.copyWith(
-      snackBarMessage: 'Account created successfully!',
+    final data = await LoginRepo().signUp(
+      phoneNumber: username,
+      password: password,
+      role: role.toString(),
     );
+
+    if (data != ConnectionStates.Success) {
+      state = state.copyWith(errorSignUpName: 'This user already exists');
+    }
+
+    state = state.copyWith(logInSuccessful: true);
   }
 
-  void clearSnackBar() {
-    state = state.copyWith(snackBarMessage: null);
+  Future<void> logIn({
+    required String username,
+    required String password,
+  }) async {
+    if (username.isEmpty || password.isEmpty) {
+      state = state.copyWith(errorLogInName: 'Please fill in all fields');
+      return;
+    }
+
+    final data = await LoginRepo().loginUser(
+      phoneNumber: username,
+      password: password,
+    );
+
+    if (data is ConnectionStates) {
+      state = state.copyWith(errorLogInName: 'Invalid credentials');
+      return;
+    }
+
+    state = state.copyWith(
+      logInSuccessful: true,
+      isProfileComplete: data["complete"],
+      selectedType: data["role"] == "customer"
+          ? AccountType.customer
+          : AccountType.restaurant,
+    );
   }
 }
 
