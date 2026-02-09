@@ -64,7 +64,7 @@ class LoginViewModel extends Notifier<LoginState> {
     final data = await LoginRepo().signUp(
       phoneNumber: username,
       password: password,
-      role: role.toString(),
+      role: role == AccountType.customer ? "customer" : " restaurant",
     );
 
     if (data != ConnectionStates.Success) {

@@ -10,8 +10,8 @@ class HttpClient {
   static Dio geoCoding = Dio(
     BaseOptions(baseUrl: "https://api.neshan.org/v6/"),
   );
-  static Dio instance = Dio(BaseOptions(baseUrl: "http://10.0.2.2:8000/api/"));
-  // static Dio instance = Dio(BaseOptions(baseUrl: "http://10.0.2.2:8000/api/v1/"));
+  // static Dio instance = Dio(BaseOptions(baseUrl: "http://10.0.2.2:8000/api/"));
+  static Dio instance = Dio(BaseOptions(baseUrl: "http://10.0.2.2:8000/api/v1/"));
 
   static final globalHeader = Options(
     followRedirects: false,
