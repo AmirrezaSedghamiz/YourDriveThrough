@@ -28,8 +28,10 @@ class Restaurant(models.Model):
 class Order(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE)
-    start = models.TimeField()
-    expected_duration = models.TimeField()
+
+    start = models.DateTimeField()
+    expected_duration = models.IntegerField()
+
     status = models.CharField(max_length=16)
     total = models.IntegerField()
 

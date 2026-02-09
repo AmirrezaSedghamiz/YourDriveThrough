@@ -215,6 +215,7 @@ class OrderReadSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "customer_id",
+            "restaurant_id",
             "status",
             "created_at",
             "expected_duration",
@@ -228,3 +229,6 @@ class CategoryMenuSerializer(serializers.Serializer):
     items = MenuItemSerializer(many=True)
 
 
+class PaginationSerializer(serializers.Serializer):
+    index = serializers.IntegerField(min_value=0)
+    count = serializers.IntegerField(min_value=1, max_value=50)

@@ -16,6 +16,7 @@ from .models import Restaurant, Category, Customer, Order, MenuItem
 from .utils import haversine
 from .serializers import OrderCreateSerializer
 from .serializers import OrderReadSerializer
+from .serializers import PaginationSerializer
 from collections import defaultdict
 from rest_framework.exceptions import NotFound
 
@@ -196,9 +197,80 @@ class ActiveRestaurantOrdersView(generics.ListAPIView):
             Order.objects
             .filter(
                 restaurant=restaurant,
-                status__in=["pending", "accepted", "preparing"],
+                status__in=["accepted", "done"],
             )
             .select_related("customer")
             .prefetch_related("orderitem_set__item")
             .order_by("-created_at")
         )
+
+
+class PendingRestaurantOrdersView(generics.ListAPIView):
+    serializer_class = OrderReadSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        try:
+            restaurant = Restaurant.objects.get(user=self.request.user)
+        except Restaurant.DoesNotExist:
+            raise PermissionDenied("Only restaurants can access this endpoint.")
+
+        return (
+            Order.objects
+            .filter(
+                restaurant=restaurant,
+                status__in=["pending"],
+            )
+            .select_related("customer")
+            .prefetch_related("orderitem_set__item")
+            .order_by("-created_at")
+        )
+
+
+class AllRestaurantOrdersView(generics.ListAPIView):
+    serializer_class = OrderReadSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        try:
+            restaurant = Restaurant.objects.get(user=self.request.user)
+        except Restaurant.DoesNotExist:
+            raise PermissionDenied("Only restaurants can access this endpoint.")
+
+        return (
+            Order.objects
+            .filter(restaurant=restaurant)
+            .select_related("customer")
+            .prefetch_related("orderitem_set__item")
+            .order_by("-created_at")
+        )
+
+    def post(self, request, *args, **kwargs):
+        try:
+            restaurant = Restaurant.objects.get(user=request.user)
+        except Restaurant.DoesNotExist:
+            raise PermissionDenied("Only restaurants can access this endpoint.")
+
+        serializer = PaginationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        index = serializer.validated_data["index"]
+        count = serializer.validated_data["count"]
+
+        queryset = (
+            Order.objects
+            .filter(restaurant=restaurant)
+            .select_related("customer")
+            .prefetch_related("orderitem_set__item")
+            .order_by("-created_at")
+        )
+
+        # Manual pagination
+        paginator = self.paginator
+        paginator.page_size = count
+        paginator.page = index + 1  # DRF pages are 1-based
+
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        serialized = self.get_serializer(page, many=True)
+
+        return paginator.get_paginated_response(serialized.data)

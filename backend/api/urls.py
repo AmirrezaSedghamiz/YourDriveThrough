@@ -7,6 +7,8 @@ from .views import GetCategoriesView
 from .views import SaveMenuItemView
 from .views import OrderCreateView
 from .views import ActiveRestaurantOrdersView
+from .views import PendingRestaurantOrdersView
+from .views import AllRestaurantOrdersView
 from .views import RestaurantMenuGroupedView
 
 
@@ -19,5 +21,7 @@ urlpatterns = [
     path("menu/save/", SaveMenuItemView.as_view(), name="save_menu_item"),
     path("orders/", OrderCreateView.as_view(), name="create_order"),
     path("restaurant/orders/active/", ActiveRestaurantOrdersView.as_view()),
+    path("restaurant/orders/pending/", PendingRestaurantOrdersView.as_view()),
+    path("restaurant/orders/all/", AllRestaurantOrdersView.as_view()),
     path("restaurants/<int:restaurant_id>/menu/",RestaurantMenuGroupedView.as_view()),
 ]
