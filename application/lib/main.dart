@@ -42,8 +42,8 @@ class MyApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       // home: SplashScreen(),
       // home: OnBoardingScreen(),
-      home: MapBuilder(),
-      // home: LoginPage(),
+      // home: MapBuilder(),
+      home: LoginPage(),
       // home: Dashboard(initialPage: 0),
     );
   }
