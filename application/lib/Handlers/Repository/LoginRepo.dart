@@ -14,9 +14,8 @@ class LoginRepo {
   }
 
   Future<dynamic> _loginUserHandler(Response response) async {
-    print(response.data);
-    print(response.statusCode);
-    if (response.statusCode == 200) {
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
       await TokenStore.saveTokens(
         response.data["access_token"],
         response.data["refresh_token"],
@@ -72,7 +71,7 @@ class LoginRepo {
   Future<dynamic> _signUpHandler(Response response) async {
     print(response.data);
     print(response.statusCode);
-    if (response.statusCode == 200) {
+    if (response.statusCode == 200 || response.statusCode == 201) {
       await TokenStore.saveTokens(
         response.data["access_token"],
         response.data["refresh_token"],

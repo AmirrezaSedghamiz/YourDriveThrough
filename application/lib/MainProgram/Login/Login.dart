@@ -1,4 +1,5 @@
 // Updated Login.dart using reusable components
+import 'package:application/GlobalWidgets/NavigationServices/NavigationService.dart';
 import 'package:application/GlobalWidgets/NavigationServices/RouteFactory.dart';
 import 'package:application/GlobalWidgets/ReusableComponents/Buttons.dart';
 import 'package:application/GlobalWidgets/ReusableComponents/CheckBox.dart';
@@ -63,11 +64,15 @@ class _LoginPageState extends ConsumerState<LoginPage>
       final isLoggedIn = next.logInSuccessful;
       final role = next.selectedType;
       if (!wasLoggedIn && isLoggedIn) {
-        role == AccountType.customer
+        var route = (role == AccountType.customer
             ? AppRoutes.fade(DashboardCustomer(initialPage: 0))
             : next.isProfileComplete
             ? AppRoutes.fade(DashboardManager())
-            : AppRoutes.fade(MapBuilder());
+            : AppRoutes.fade(MapBuilder()));
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          NavigationService.popAllAndPush(route);
+        });
       }
     });
     return Scaffold(
@@ -75,12 +80,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(
-            24,
-            32,
-            24,
-            0,
-          ),
+          padding: EdgeInsets.fromLTRB(24, 32, 24, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -124,9 +124,9 @@ class _LoginPageState extends ConsumerState<LoginPage>
                   ],
                 ),
               ),
-          
+
               const SizedBox(height: 20),
-          
+
               /// --- Tab Switch ---
               AppTabSwitch(
                 value: state.isInSignIn,
@@ -139,7 +139,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                 leftLabel: "Sign In",
                 rightLabel: "Sign Up",
               ),
-          
+
               const SizedBox(height: 24),
 
               /// --- Form Content ---
@@ -154,10 +154,11 @@ class _LoginPageState extends ConsumerState<LoginPage>
                 firstCurve: Curves.easeInOut,
                 secondCurve: Curves.easeInOut,
               ),
-          
+
               const SizedBox(height: 24),
-              if(state.isInSignIn)
-              SizedBox(height: MediaQuery.of(context).size.height * 0.125,),
+              if (state.isInSignIn)
+                SizedBox(height: MediaQuery.of(context).size.height * 0.125),
+
               /// --- BUTTON ---
               AppButton(
                 text: state.isInSignIn ? "Sign In" : "Create Account",
@@ -171,15 +172,14 @@ class _LoginPageState extends ConsumerState<LoginPage>
                     viewModel.signUp(
                       username: _nameControllerSignUp.text,
                       password: _passwordControllerSignUp.text,
-                      confirmPassword:
-                          _confirmPasswordControllerSignUp.text,
+                      confirmPassword: _confirmPasswordControllerSignUp.text,
                       role: state.selectedType,
                     );
                   }
                 },
                 variant: AppButtonVariant.primary,
               ),
-          
+
               const SizedBox(height: 12),
             ],
           ),
