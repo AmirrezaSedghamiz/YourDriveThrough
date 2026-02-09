@@ -64,14 +64,18 @@ class LoginViewModel extends Notifier<LoginState> {
     final data = await LoginRepo().signUp(
       phoneNumber: username,
       password: password,
-      role: role == AccountType.customer ? "customer" : " restaurant",
+      role: role == AccountType.customer ? "customer" : "restaurant",
     );
 
     if (data != ConnectionStates.Success) {
       state = state.copyWith(errorSignUpName: 'This user already exists');
+      return;
     }
 
-    state = state.copyWith(logInSuccessful: true);
+    state = state.copyWith(
+      logInSuccessful: true,
+      isProfileComplete: role == AccountType.customer ? true : false,
+    );
   }
 
   Future<void> logIn({
