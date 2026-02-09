@@ -14,12 +14,12 @@ class LoginRepo {
   }
 
   Future<dynamic> _loginUserHandler(Response response) async {
-
     if (response.statusCode == 200 || response.statusCode == 201) {
       await TokenStore.saveTokens(
         response.data["access_token"],
         response.data["refresh_token"],
       );
+      print(response.data);
       return {
         "role": response.data["role"],
         "complete": response.data["profile_complete"] ?? true,

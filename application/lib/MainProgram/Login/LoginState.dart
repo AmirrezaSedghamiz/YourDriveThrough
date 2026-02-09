@@ -16,9 +16,10 @@ class LoginState {
   final String? errorLogInPassword;
   final String? errorSignUpName;
   final String? errorSignUpConfirm;
+  final String? username;
   final AccountType? selectedType;
 
-  LoginState({
+  LoginState( {
     this.isPasswordVisibleSignUp = false,
     this.isPasswordVisibleSignIn = false,
     this.isProfileComplete = true,
@@ -31,6 +32,7 @@ class LoginState {
     this.errorLogInPassword,
     this.errorSignUpConfirm,
     this.errorSignUpName,
+    this.username,
   });
 
 
@@ -46,9 +48,11 @@ class LoginState {
     String? errorLogInPassword,
     String? errorSignUpName,
     String? errorSignUpConfirm,
+    String? username,
     AccountType? selectedType,
   }) {
     return LoginState(
+      username: username ?? this.username,
       isPasswordVisibleSignUp: isPasswordVisibleSignUp ?? this.isPasswordVisibleSignUp,
       isPasswordVisibleSignIn: isPasswordVisibleSignIn ?? this.isPasswordVisibleSignIn,
       isConfirmPasswordVisible: isConfirmPasswordVisible ?? this.isConfirmPasswordVisible,

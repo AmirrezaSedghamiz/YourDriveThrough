@@ -8,7 +8,7 @@ class TokenStore {
   static Future<void> saveTokens(
       String accessToken, String refreshToken) async {
     await SharedPreferencesManager.instance
-        .setString('accessToken', accessToken);
+        .setString('accessToken', 'Bearer $accessToken');
     await SharedPreferencesManager.instance
         .setString('refreshToken', refreshToken);
   }
