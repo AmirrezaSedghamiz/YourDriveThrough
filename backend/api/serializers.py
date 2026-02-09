@@ -1,9 +1,11 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from rest_framework_simplejwt.tokens import RefreshToken
-from .models import Customer, Restaurant, Category, MenuItem
-from .exceptions import RoleNotFound
 from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.tokens import RefreshToken
+from .models import Customer, Restaurant, Category, MenuItem, Order, OrderItem
+from .exceptions import RoleNotFound
+from django.contrib.auth import login
+
 
 User = get_user_model()
 
@@ -12,9 +14,18 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
     def validate(self, data):
-        user = authenticate(username=data["phone"], password=data["password"])
+        request = self.context["request"]
+
+        user = authenticate(
+            request=request,
+            phone=data["phone"],
+            password=data["password"],
+        )
+
         if not user:
             raise serializers.ValidationError({"error": "Invalid credentials"})
+
+        login(request, user)
 
         role = None
         profile_complete = None
@@ -30,18 +41,15 @@ class LoginSerializer(serializers.Serializer):
                 restaurant.address,
                 restaurant.latitude,
                 restaurant.longitude,
-                restaurant.image
+                restaurant.image,
             ])
-
         else:
             raise RoleNotFound()
 
-        refresh = RefreshToken.for_user(user)
         response = {
-            "access_token": str(refresh.access_token),
-            "refresh_token": str(refresh),
             "role": role,
         }
+
         if role == "restaurant":
             response["profile_complete"] = profile_complete
 
@@ -59,9 +67,11 @@ class SignupSerializer(serializers.Serializer):
         return value
 
     def create(self, validated_data):
-        role = validated_data.pop("role")
-        password = validated_data.pop("password")
-        phone = validated_data.pop("phone")
+        request = self.context["request"]
+
+        role = validated_data["role"]
+        phone = validated_data["phone"]
+        password = validated_data["password"]
 
         user = User.objects.create(phone=phone)
         user.set_password(password)
@@ -69,13 +79,13 @@ class SignupSerializer(serializers.Serializer):
 
         if role == "customer":
             Customer.objects.create(user=user)
-        elif role == "restaurant":
+        else:
             Restaurant.objects.create(user=user)
 
-        refresh = RefreshToken.for_user(user)
+        login(request, user)
+
         return {
-            "access_token": str(refresh.access_token),
-            "refresh_token": str(refresh),
+            "role": role,
         }
 
 
@@ -122,4 +132,109 @@ class MenuItemSerializer(serializers.ModelSerializer):
             "categories",
             "image",
         ]
+
+
+class OrderItemCreateSerializer(serializers.Serializer):
+    menu_item = serializers.IntegerField()
+    quantity = serializers.IntegerField(min_value=1)
+    special = serializers.CharField(required=False, allow_blank=True)
+
+
+class OrderCreateSerializer(serializers.ModelSerializer):
+    items = OrderItemCreateSerializer(many=True)
+
+    class Meta:
+        model = Order
+        fields = ("restaurant", "items")
+
+    def validate(self, data):
+        items = data["items"]
+        restaurant = data["restaurant"]
+
+        menu_items = MenuItem.objects.filter(
+            id__in=[i["menu_item"] for i in items],
+            is_active=True,
+            restaurant=restaurant,
+        )
+
+        if menu_items.count() != len(items):
+            raise serializers.ValidationError(
+                "All items must belong to the restaurant and be active."
+            )
+
+        return data
+
+    def create(self, validated_data):
+        items_data = validated_data.pop("items")
+        restaurant = validated_data["restaurant"]
+
+        total = 0
+        max_duration = None
+
+        menu_items = {
+            item.id: item
+            for item in MenuItem.objects.filter(
+                id__in=[i["menu_item"] for i in items_data]
+            )
+        }
+
+        for item in items_data:
+            menu_item = menu_items[item["menu_item"]]
+            qty = item["quantity"]
+
+            total += menu_item.price * qty
+
+            if not max_duration or menu_item.expected_duration > max_duration:
+                max_duration = menu_item.expected_duration
+
+        order = Order.objects.create(
+            restaurant=restaurant,
+            expected_duration=max_duration,
+            total=total,
+            **validated_data,
+        )
+
+        for item in items_data:
+            OrderItem.objects.create(
+                order=order,
+                item=menu_items[item["menu_item"]],
+                quantity=item["quantity"],
+                special=item.get("special", ""),
+            )
+
+        return order
+
+
+class OrderItemReadSerializer(serializers.ModelSerializer):
+    item_name = serializers.CharField(source="item.name", read_only=True)
+
+    class Meta:
+        model = OrderItem
+        fields = ("id", "item_name", "quantity", "special")
+
+
+class OrderReadSerializer(serializers.ModelSerializer):
+    items = OrderItemReadSerializer(
+        source="orderitem_set", many=True, read_only=True
+    )
+
+    customer_id = serializers.IntegerField(source="customer.id", read_only=True)
+
+    class Meta:
+        model = Order
+        fields = (
+            "id",
+            "customer_id",
+            "status",
+            "created_at",
+            "expected_duration",
+            "total",
+            "items",
+        )
+
+
+class CategoryMenuSerializer(serializers.Serializer):
+    category = serializers.CharField()
+    items = MenuItemSerializer(many=True)
+
 

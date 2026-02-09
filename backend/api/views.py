@@ -1,14 +1,25 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
 from rest_framework import status, permissions
+from rest_framework import generics
 from .serializers import LoginSerializer
 from .serializers import SignupSerializer
 from .serializers import RestaurantSerializer
 from .serializers import ClosestRestaurantsSerializer
 from .serializers import CategorySerializer
 from .serializers import MenuItemSerializer
-from .models import Restaurant, Category
+from .serializers import CategoryMenuSerializer
+from django.db import transaction
+from django.utils import timezone
+from .models import Restaurant, Category, Customer, Order, MenuItem
 from .utils import haversine
+from .serializers import OrderCreateSerializer
+from .serializers import OrderReadSerializer
+from collections import defaultdict
+from rest_framework.exceptions import NotFound
+
+
 
 class LoginView(APIView):
     def post(self, request):
@@ -116,3 +127,76 @@ class SaveMenuItemView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class RestaurantMenuGroupedView(APIView):
+    permission_classes = []
+
+    def get(self, request, restaurant_id):
+        if not Restaurant.objects.filter(id=restaurant_id).exists():
+            raise NotFound("Restaurant not found.")
+
+        items = (
+            MenuItem.objects
+            .filter(
+                restaurant_id=restaurant_id,
+                is_active=True,
+            )
+            .prefetch_related("categories")
+        )
+
+        grouped = defaultdict(list)
+
+        for item in items:
+            if item.categories.exists():
+                for category in item.categories.all():
+                    grouped[category.name].append(item)
+            else:
+                grouped["Uncategorized"].append(item)
+
+        response_data = [
+            {
+                "category": category,
+                "items": MenuItemSerializer(items, many=True).data,
+            }
+            for category, items in grouped.items()
+        ]
+
+        return Response(
+            CategoryMenuSerializer(response_data, many=True).data
+        )
+
+
+class OrderCreateView(generics.CreateAPIView):
+    serializer_class = OrderCreateSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        customer = Customer.objects.get(user=self.request.user)
+
+        with transaction.atomic():
+            serializer.save(
+                customer=customer,
+                status="pending",
+                created_at=timezone.now(),
+            )
+
+
+class ActiveRestaurantOrdersView(generics.ListAPIView):
+    serializer_class = OrderReadSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        try:
+            restaurant = Restaurant.objects.get(user=self.request.user)
+        except Restaurant.DoesNotExist:
+            raise PermissionDenied("Only restaurants can access this endpoint.")
+
+        return (
+            Order.objects
+            .filter(
+                restaurant=restaurant,
+                status__in=["pending", "accepted", "preparing"],
+            )
+            .select_related("customer")
+            .prefetch_related("orderitem_set__item")
+            .order_by("-created_at")
+        )
