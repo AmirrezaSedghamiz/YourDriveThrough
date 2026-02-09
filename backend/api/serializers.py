@@ -231,3 +231,10 @@ class OrderReadSerializer(serializers.ModelSerializer):
             "total",
             "items",
         )
+
+
+class CategoryMenuSerializer(serializers.Serializer):
+    category = serializers.CharField()
+    items = MenuItemSerializer(many=True)
+
+

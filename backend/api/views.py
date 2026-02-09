@@ -9,12 +9,16 @@ from .serializers import RestaurantSerializer
 from .serializers import ClosestRestaurantsSerializer
 from .serializers import CategorySerializer
 from .serializers import MenuItemSerializer
+from .serializers import CategoryMenuSerializer
 from django.db import transaction
 from django.utils import timezone
-from .models import Restaurant, Category, Customer, Order
+from .models import Restaurant, Category, Customer, Order, MenuItem
 from .utils import haversine
 from .serializers import OrderCreateSerializer
 from .serializers import OrderReadSerializer
+from collections import defaultdict
+from rest_framework.exceptions import NotFound
+
 
 
 class LoginView(APIView):
@@ -121,6 +125,44 @@ class SaveMenuItemView(APIView):
                 status=status.HTTP_201_CREATED
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class RestaurantMenuGroupedView(APIView):
+    permission_classes = []
+
+    def get(self, request, restaurant_id):
+        if not Restaurant.objects.filter(id=restaurant_id).exists():
+            raise NotFound("Restaurant not found.")
+
+        items = (
+            MenuItem.objects
+            .filter(
+                restaurant_id=restaurant_id,
+                is_active=True,
+            )
+            .prefetch_related("categories")
+        )
+
+        grouped = defaultdict(list)
+
+        for item in items:
+            if item.categories.exists():
+                for category in item.categories.all():
+                    grouped[category.name].append(item)
+            else:
+                grouped["Uncategorized"].append(item)
+
+        response_data = [
+            {
+                "category": category,
+                "items": MenuItemSerializer(items, many=True).data,
+            }
+            for category, items in grouped.items()
+        ]
+
+        return Response(
+            CategoryMenuSerializer(response_data, many=True).data
+        )
 
 
 class OrderCreateView(generics.CreateAPIView):
