@@ -1,12 +1,18 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:collection' show MapView;
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
+import 'package:application/GlobalWidgets/InternetManager/ConnectionStates.dart';
 import 'package:application/GlobalWidgets/InternetManager/HttpClient.dart';
+import 'package:application/GlobalWidgets/NavigationServices/NavigationService.dart';
+import 'package:application/GlobalWidgets/NavigationServices/RouteFactory.dart';
 import 'package:application/GlobalWidgets/Services/MapWidgets/FloatingButtons.dart';
 import 'package:application/GlobalWidgets/Services/MapWidgets/MapWidget.dart';
 import 'package:application/GlobalWidgets/Services/MapWidgets/Serach.dart';
+import 'package:application/Handlers/Repository/ManagerRepo.dart';
+import 'package:application/MainProgram/Manager/DashboardManager.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -15,7 +21,11 @@ import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:location/location.dart';
 
 class MapBuilder extends StatefulWidget {
-  const MapBuilder({super.key});
+  const MapBuilder({super.key, required this.username, this.image});
+
+  final String username;
+  final File? image;
+
   @override
   State<MapBuilder> createState() => _MapBuilderState();
 }
@@ -140,16 +150,32 @@ class _MapBuilderState extends State<MapBuilder> {
               MapSubmitFab(
                 isLoading: isLoading,
                 enabled:
-                    !(isLoading ||
-                        (selectedLocation == null && userLocation == null)),
+                    !(isLoading ||selectedLocation == null),
                 onPressed: () async {
+                  print("SDFSDF");
                   setState(() => isLoading = true);
-                  await HttpClient.reverseGeoCoding.get(
-                    'reverse?lat=${selectedLocation != null ? selectedLocation!.latitude : userLocation?.latitude!}&lng=${selectedLocation != null ? selectedLocation!.longitude : userLocation?.longitude!}',
+                  print("WEEEEEEEEEEEEEe");
+                  final address = await HttpClient.reverseGeoCoding.get(
+                    'reverse?lat=${selectedLocation!.latitude}&lng=${selectedLocation!.longitude}',
                     options: HttpClient.globalHeader,
                   );
-                  // Keep your legacy flow (you didn’t set isLoading=false earlier)
-                  // If you want, you can set it back, but that would be logic change.
+                  await ManagerRepo()
+                      .fillRestaurantProfile(
+                        username: widget.username,
+                        longitude: formatCoordinate(selectedLocation!.longitude),
+                        latitude: formatCoordinate(selectedLocation!.latitude),
+                        image: widget.image,
+                        address: address.data['formatted_address'],
+                      )
+                      .then((value) {
+                        if (value == ConnectionStates.Success) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            NavigationService.popAllAndPush(
+                              AppRoutes.fade(DashboardManager()),
+                            );
+                          });
+                        }
+                      });
                 },
               ),
             ],
@@ -250,4 +276,8 @@ class LocationSeri {
 
   factory LocationSeri.fromJson(String source) =>
       LocationSeri.fromMap(json.decode(source) as Map<String, dynamic>);
+}
+
+double formatCoordinate(double value) {
+  return double.parse(value.toStringAsFixed(6));
 }

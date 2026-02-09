@@ -31,7 +31,7 @@ class LoginSerializer(serializers.Serializer):
                 restaurant.address,
                 restaurant.latitude,
                 restaurant.longitude,
-                restaurant.image
+                # restaurant.image
             ])
 
         else:
@@ -93,7 +93,7 @@ class RestaurantSerializer(serializers.ModelSerializer):
             bool(obj.address),
             obj.latitude is not None,
             obj.longitude is not None,
-            bool(obj.image)
+            # bool(obj.image)
         ])
 
 

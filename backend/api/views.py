@@ -53,6 +53,7 @@ class CompleteRestaurantProfileView(APIView):
             )
 
         serializer = RestaurantSerializer(restaurant, data=request.data, partial=True)
+        print(serializer)
         if serializer.is_valid():
             serializer.save()
             return Response({

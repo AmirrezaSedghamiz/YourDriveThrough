@@ -75,6 +75,7 @@ class LoginViewModel extends Notifier<LoginState> {
     state = state.copyWith(
       logInSuccessful: true,
       isProfileComplete: role == AccountType.customer ? true : false,
+      username: username,
     );
   }
 
@@ -97,12 +98,15 @@ class LoginViewModel extends Notifier<LoginState> {
       return;
     }
 
+    print(data["complete"]);
+
     state = state.copyWith(
       logInSuccessful: true,
       isProfileComplete: data["complete"],
       selectedType: data["role"] == "customer"
           ? AccountType.customer
           : AccountType.restaurant,
+      username: username,
     );
   }
 }

@@ -68,7 +68,11 @@ class _LoginPageState extends ConsumerState<LoginPage>
             ? AppRoutes.fade(DashboardCustomer(initialPage: 0))
             : next.isProfileComplete
             ? AppRoutes.fade(DashboardManager())
-            : AppRoutes.fade(MapBuilder()));
+            : AppRoutes.fade(
+                MapBuilder(
+                  username: next.username ?? ""
+                ),
+              ));
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
           NavigationService.popAllAndPush(route);
