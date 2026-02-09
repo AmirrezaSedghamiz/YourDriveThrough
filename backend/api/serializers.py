@@ -4,7 +4,6 @@ from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import Customer, Restaurant, Category, MenuItem, Order, OrderItem
 from .exceptions import RoleNotFound
-from django.contrib.auth import login
 
 
 User = get_user_model()
@@ -14,18 +13,9 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
     def validate(self, data):
-        request = self.context["request"]
-
-        user = authenticate(
-            request=request,
-            phone=data["phone"],
-            password=data["password"],
-        )
-
+        user = authenticate(username=data["phone"], password=data["password"])
         if not user:
             raise serializers.ValidationError({"error": "Invalid credentials"})
-
-        login(request, user)
 
         role = None
         profile_complete = None
@@ -41,15 +31,18 @@ class LoginSerializer(serializers.Serializer):
                 restaurant.address,
                 restaurant.latitude,
                 restaurant.longitude,
-                restaurant.image,
+                restaurant.image
             ])
+
         else:
             raise RoleNotFound()
 
+        refresh = RefreshToken.for_user(user)
         response = {
+            "access_token": str(refresh.access_token),
+            "refresh_token": str(refresh),
             "role": role,
         }
-
         if role == "restaurant":
             response["profile_complete"] = profile_complete
 
@@ -67,11 +60,9 @@ class SignupSerializer(serializers.Serializer):
         return value
 
     def create(self, validated_data):
-        request = self.context["request"]
-
-        role = validated_data["role"]
-        phone = validated_data["phone"]
-        password = validated_data["password"]
+        role = validated_data.pop("role")
+        password = validated_data.pop("password")
+        phone = validated_data.pop("phone")
 
         user = User.objects.create(phone=phone)
         user.set_password(password)
@@ -79,13 +70,13 @@ class SignupSerializer(serializers.Serializer):
 
         if role == "customer":
             Customer.objects.create(user=user)
-        else:
+        elif role == "restaurant":
             Restaurant.objects.create(user=user)
 
-        login(request, user)
-
+        refresh = RefreshToken.for_user(user)
         return {
-            "role": role,
+            "access_token": str(refresh.access_token),
+            "refresh_token": str(refresh),
         }
 
 
