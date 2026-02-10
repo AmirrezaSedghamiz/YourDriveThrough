@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 from rest_framework import status, permissions
 from rest_framework import generics
-from .serializers import LoginSerializer
+from .serializers import CustomerSerializer, LoginSerializer, RatingCreateSerializer, RatingSerializer, RestaurantUpdateSerializer, UserSerializer
 from .serializers import SignupSerializer
 from .serializers import RestaurantSerializer
 from .serializers import ClosestRestaurantsSerializer
@@ -12,15 +12,20 @@ from .serializers import MenuItemSerializer
 from .serializers import CategoryMenuSerializer
 from django.db import transaction
 from django.utils import timezone
+from django.core.paginator import Paginator
 from .models import Restaurant, Category, Customer, Order, MenuItem
 from .utils import haversine
 from .serializers import OrderCreateSerializer
-from .serializers import OrderReadSerializer
+from .serializers import OrderSerializer
+from .serializers import MyOrdersFilterSerializer
 from collections import defaultdict
 from rest_framework.exceptions import NotFound
+from drf_spectacular.utils import extend_schema
 
 
-
+@extend_schema(
+    request=LoginSerializer,
+)
 class LoginView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -29,7 +34,9 @@ class LoginView(APIView):
         print(serializer.errors)
         return Response(serializer.errors, status=status.HTTP_403_FORBIDDEN)
 
-
+@extend_schema(
+    request=SignupSerializer,
+)
 class SignupView(APIView):
     def post(self, request):
         serializer = SignupSerializer(data=request.data)
@@ -38,64 +45,128 @@ class SignupView(APIView):
             return Response(result, status=status.HTTP_201_CREATED)
         print(serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+class MeView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        data = {
+            "user": UserSerializer(user).data,
+        }
+
+        if hasattr(user, "restaurant"):
+            data["role"] = "restaurant"
+            data["restaurant"] = RestaurantSerializer(user.restaurant).data
+
+        elif hasattr(user, "customer"):
+            data["role"] = "customer"
+            data["customer"] = CustomerSerializer(user.customer).data
+
+        else:
+            data["role"] = "unknown"
+
+        return Response(data)
 
 
-class CompleteRestaurantProfileView(APIView):
+class RestaurantMeUpdateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        try:
-            restaurant = Restaurant.objects.get(user=request.user)
-        except Restaurant.DoesNotExist:
-            return Response(
-                {"error": "Access violation: not a restaurant"},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        response = self.patch(request)
+        response.headers["X-Deprecated"] = "Use PATCH /me/restaurant/"
+        return response
 
-        serializer = RestaurantSerializer(restaurant, data=request.data, partial=True)
-        print(serializer)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({
-                "message": "Profile updated successfully",
-                "profile_complete": serializer.data["profile_complete"]
-            }, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def patch(self, request):
+        if not hasattr(request.user, "restaurant"):
+            raise PermissionDenied("Only restaurants can update this.")
+
+        restaurant = request.user.restaurant
+
+        serializer = RestaurantUpdateSerializer(
+            restaurant,
+            data=request.data,
+            partial=True
+        )
+
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        # Reuse RestaurantSerializer for derived fields
+        response_data = serializer.data
+        response_data["profile_complete"] = all([
+            restaurant.name,
+            restaurant.address,
+            restaurant.latitude,
+            restaurant.longitude,
+        ])
+
+        return Response(response_data)
 
 
+@extend_schema(
+    request=ClosestRestaurantsSerializer,
+    responses=RestaurantSerializer(many=True),
+)
 class GetClosestRestaurantsView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
         serializer = ClosestRestaurantsSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
 
         lat = serializer.validated_data["latitude"]
         lon = serializer.validated_data["longitude"]
-        index = serializer.validated_data["index"]
-        count = serializer.validated_data["count"]
+        page = serializer.validated_data["page"]
+        page_size = serializer.validated_data["page_size"]
 
-        restaurants = Restaurant.objects.exclude(latitude=None).exclude(longitude=None)
+        restaurants = Restaurant.objects.exclude(
+            latitude=None
+        ).exclude(
+            longitude=None
+        )
 
         # Compute distances
         distances = []
         for r in restaurants:
-            dist = haversine(lat, lon, float(r.latitude), float(r.longitude))
+            dist = haversine(
+                lat,
+                lon,
+                float(r.latitude),
+                float(r.longitude),
+            )
             distances.append((r, dist))
 
         # Sort by distance
         distances.sort(key=lambda x: x[1])
 
-        # Apply pagination
-        selected = distances[index:index+count]
-        selected_restaurants = [r[0] for r in selected]
+        # Extract ordered restaurants
+        ordered_restaurants = [r[0] for r in distances]
 
-        # Serialize full info
-        serializer = RestaurantSerializer(selected_restaurants, many=True)
-        return Response({"restaurants": serializer.data}, status=status.HTTP_200_OK)
+        # Proper pagination (same as MyOrdersView)
+        paginator = Paginator(ordered_restaurants, page_size)
+        page_obj = paginator.get_page(page)
 
+        return Response({
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total_pages": paginator.num_pages,
+                "total_items": paginator.count,
+                "has_next": page_obj.has_next(),
+                "has_previous": page_obj.has_previous(),
+            },
+            "results": RestaurantSerializer(
+                page_obj.object_list,
+                many=True
+            ).data
+        }, status=status.HTTP_200_OK)
 
+@extend_schema(
+    responses=CategorySerializer(many=True),
+)
 class GetCategoriesView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -118,7 +189,7 @@ class SaveMenuItemView(APIView):
             )
 
         data = request.data.copy()
-        data["restaurant"] = restaurant.id  # enforce ownership
+        data["restaurant"] = restaurant.id
 
         serializer = MenuItemSerializer(data=data)
         if serializer.is_valid():
@@ -183,23 +254,117 @@ class OrderCreateView(generics.CreateAPIView):
             )
 
 
-class ActiveRestaurantOrdersView(generics.ListAPIView):
-    serializer_class = OrderReadSerializer
+# DEPRECATED: Use POST /me/orders/ with statuses=["accepted","done"]
+class ActiveRestaurantOrdersView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
-        try:
-            restaurant = Restaurant.objects.get(user=self.request.user)
-        except Restaurant.DoesNotExist:
-            raise PermissionDenied("Only restaurants can access this endpoint.")
+    def get(self, request):
+        response = MyOrdersView()._handle(
+            request,
+            forced_statuses=["accepted", "done"]
+        )
+        response.headers["X-Deprecated"] = "Use POST /me/orders/"
+        return response
 
-        return (
-            Order.objects
-            .filter(
-                restaurant=restaurant,
-                status__in=["pending", "accepted", "preparing"],
+
+# DEPRECATED: Use POST /me/orders/ with statuses=["pending"]
+class PendingRestaurantOrdersView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        response = MyOrdersView()._handle(
+            request,
+            forced_statuses=["pending"]
+        )
+        response.headers["X-Deprecated"] = "Use POST /me/orders/"
+        return response
+
+
+# DEPRECATED: Use POST /me/orders/
+class AllRestaurantOrdersView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        response = MyOrdersView()._handle(request)
+        response.headers["X-Deprecated"] = "Use POST /me/orders/"
+        return response
+
+    def post(self, request):
+        response = MyOrdersView()._handle(request)
+        response.headers["X-Deprecated"] = "Use POST /me/orders/"
+        return response
+
+@extend_schema(
+    responses=OrderSerializer(many=True)
+)
+class MyOrdersView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        filter_serializer = MyOrdersFilterSerializer(data=request.data)
+        filter_serializer.is_valid(raise_exception=True)
+
+        statuses = filter_serializer.validated_data.get("statuses")
+        page = filter_serializer.validated_data["page"]
+        page_size = filter_serializer.validated_data["page_size"]
+
+        user = request.user
+
+        # role-based queryset
+        if hasattr(user, "customer"):
+            queryset = Order.objects.filter(
+                customer=user.customer
             )
-            .select_related("customer")
-            .prefetch_related("orderitem_set__item")
-            .order_by("-created_at")
+
+        elif hasattr(user, "restaurant"):
+            queryset = Order.objects.filter(
+                restaurant=user.restaurant
+            )
+
+        else:
+            raise PermissionDenied("User has no valid role.")
+
+        if statuses:
+            queryset = queryset.filter(status__in=statuses)
+
+        queryset = queryset.order_by("-id")
+
+        paginator = Paginator(queryset, page_size)
+        page_obj = paginator.get_page(page)
+
+        return Response({
+            "role": "customer" if hasattr(user, "customer") else "restaurant",
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total_pages": paginator.num_pages,
+                "total_items": paginator.count,
+                "has_next": page_obj.has_next(),
+                "has_previous": page_obj.has_previous(),
+            },
+            "results": OrderSerializer(
+                page_obj.object_list,
+                many=True
+            ).data
+        })
+
+
+class LeaveRatingView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if not hasattr(request.user, "customer"):
+            raise PermissionDenied("Only customers can leave ratings.")
+
+        serializer = RatingCreateSerializer(
+            data=request.data,
+            context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+
+        rating = serializer.save()
+
+        return Response(
+            RatingSerializer(rating).data,
+            status=status.HTTP_201_CREATED
         )

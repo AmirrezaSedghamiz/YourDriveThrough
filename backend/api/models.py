@@ -1,11 +1,29 @@
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
+
+class UserManager(BaseUserManager):
+    def create_user(self, phone, password=None, **extra_fields):
+        if not phone:
+            raise ValueError("Phone is required")
+
+        user = self.model(phone=phone, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, phone, password=None, **extra_fields):
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+
+        return self.create_user(phone, password, **extra_fields)
 
 
-class User(AbstractBaseUser):
+class User(AbstractBaseUser, PermissionsMixin):
     phone = models.CharField(max_length=20, unique=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+
+    objects = UserManager()
 
     USERNAME_FIELD = "phone"
     REQUIRED_FIELDS = []
@@ -20,16 +38,21 @@ class Restaurant(models.Model):
 
     name = models.CharField(max_length=255)
     address = models.TextField()
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, null = True, blank = True)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, null = True, blank = True)
-    image = models.ImageField(null = True, blank = True)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    image = models.ImageField(null=True, blank=True)
+
+    is_open = models.BooleanField(default=False)
+
 
 
 class Order(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE)
-    start = models.TimeField()
-    expected_duration = models.TimeField()
+
+    start = models.DateTimeField()
+    expected_duration = models.IntegerField()
+
     status = models.CharField(max_length=16)
     total = models.IntegerField()
 
@@ -59,6 +82,9 @@ class Rating(models.Model):
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE)
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
     number = models.IntegerField()
+
+    class Meta:
+        unique_together = ("restaurant", "customer")
 
 
 class Review(models.Model):

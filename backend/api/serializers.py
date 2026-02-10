@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import Customer, Restaurant, Category, MenuItem, Order, OrderItem
+from .models import Customer, Restaurant, Category, MenuItem, Order, OrderItem, Rating, Review
 from .exceptions import RoleNotFound
 
 
@@ -31,7 +31,6 @@ class LoginSerializer(serializers.Serializer):
                 restaurant.address,
                 restaurant.latitude,
                 restaurant.longitude,
-                # restaurant.image
             ])
 
         else:
@@ -85,23 +84,61 @@ class RestaurantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Restaurant
-        fields = ["id", "name", "address", "latitude", "longitude", "image", "profile_complete"]
+        fields = (
+            "id",
+            "name",
+            "address",
+            "latitude",
+            "longitude",
+            "image",
+            "is_open",
+            "profile_complete",
+        )
 
     def get_profile_complete(self, obj):
         return all([
-            bool(obj.name),
-            bool(obj.address),
-            obj.latitude is not None,
-            obj.longitude is not None,
-            # bool(obj.image)
+            obj.name,
+            obj.address,
+            obj.latitude,
+            obj.longitude,
         ])
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "phone",
+            "is_active",
+            "last_login",
+        )
+
+
+class CustomerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Customer
+        fields = ("id",)
+
+
+class RestaurantUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Restaurant
+        fields = (
+            "name",
+            "address",
+            "latitude",
+            "longitude",
+            "image",
+            "is_open",
+        )
 
 
 class ClosestRestaurantsSerializer(serializers.Serializer):
     latitude = serializers.FloatField()
     longitude = serializers.FloatField()
-    index = serializers.IntegerField(min_value=0)
-    count = serializers.IntegerField(min_value=1, max_value=50)
+    page = serializers.IntegerField(min_value=1)
+    page_size = serializers.IntegerField(min_value=1, max_value=50)
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -196,30 +233,41 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         return order
 
 
-class OrderItemReadSerializer(serializers.ModelSerializer):
+class OrderItemSerializer(serializers.ModelSerializer):
     item_name = serializers.CharField(source="item.name", read_only=True)
+    price = serializers.IntegerField(source="item.price", read_only=True)
 
     class Meta:
         model = OrderItem
-        fields = ("id", "item_name", "quantity", "special")
+        fields = (
+            "id",
+            "item",
+            "item_name",
+            "price",
+            "quantity",
+            "special",
+        )
 
 
-class OrderReadSerializer(serializers.ModelSerializer):
-    items = OrderItemReadSerializer(
-        source="orderitem_set", many=True, read_only=True
+class OrderSerializer(serializers.ModelSerializer):
+    items = OrderItemSerializer(
+        source="orderitem_set",
+        many=True,
+        read_only=True
     )
-
-    customer_id = serializers.IntegerField(source="customer.id", read_only=True)
+    restaurant_name = serializers.CharField(source="restaurant.name", read_only=True)
+    customer_phone = serializers.CharField(source="customer.user.phone", read_only=True)
 
     class Meta:
         model = Order
         fields = (
             "id",
-            "customer_id",
             "status",
-            "created_at",
-            "expected_duration",
             "total",
+            "start",
+            "expected_duration",
+            "restaurant_name",
+            "customer_phone",
             "items",
         )
 
@@ -228,4 +276,83 @@ class CategoryMenuSerializer(serializers.Serializer):
     category = serializers.CharField()
     items = MenuItemSerializer(many=True)
 
+
+class PaginationSerializer(serializers.Serializer):
+    index = serializers.IntegerField(min_value=0)
+    count = serializers.IntegerField(min_value=1, max_value=50)
+
+
+class MyOrdersFilterSerializer(serializers.Serializer):
+    statuses = serializers.ListField(
+        child=serializers.CharField(),
+        required=False
+    )
+    page = serializers.IntegerField(min_value=1, required=False, default=1)
+    page_size = serializers.IntegerField(
+        min_value=1,
+        max_value=100,
+        required=False,
+        default=10
+    )
+
+
+class RatingCreateSerializer(serializers.Serializer):
+    restaurant = serializers.IntegerField()
+    number = serializers.IntegerField(min_value=1, max_value=5)
+    description = serializers.CharField(
+        max_length=1024,
+        required=False,
+        allow_blank=True
+    )
+
+    def validate_restaurant(self, value):
+        if not Restaurant.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Restaurant does not exist.")
+        return value
+
+    def validate(self, data):
+        customer = self.context["request"].user.customer
+        restaurant_id = data["restaurant"]
+
+        if Rating.objects.filter(
+            customer=customer,
+            restaurant_id=restaurant_id
+        ).exists():
+            raise serializers.ValidationError(
+                "You have already rated this restaurant."
+            )
+
+        return data
+
+    def create(self, validated_data):
+        customer = self.context["request"].user.customer
+        restaurant = Restaurant.objects.get(id=validated_data["restaurant"])
+
+        rating = Rating.objects.create(
+            restaurant=restaurant,
+            customer=customer,
+            number=validated_data["number"]
+        )
+
+        description = validated_data.get("description")
+        if description:
+            Review.objects.create(
+                rating=rating,
+                describtion=description
+            )
+
+        return rating
+
+
+class RatingSerializer(serializers.ModelSerializer):
+    review = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Rating
+        fields = ("id", "number", "restaurant", "review")
+
+    def get_review(self, obj):
+        if hasattr(obj, "review"):
+            return obj.review.describtion
+        return None
 

@@ -26,7 +26,8 @@ SECRET_KEY = 'django-insecure-+tg)3aj787jx@&stw_*yyh%%z670s#6qp=)clak+koh=d@h-#a
 DEBUG = True
 
 ALLOWED_HOSTS = [
-    '10.0.2.2'
+    '10.0.2.2',
+    '127.0.0.1'
 ]
 
 
@@ -49,7 +50,8 @@ INSTALLED_APPS = [
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
-    )
+    ),
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
 
