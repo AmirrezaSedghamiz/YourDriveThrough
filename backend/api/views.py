@@ -21,6 +21,37 @@ from .serializers import MyOrdersFilterSerializer
 from collections import defaultdict
 from rest_framework.exceptions import NotFound
 from drf_spectacular.utils import extend_schema
+from django.shortcuts import get_object_or_404
+from django.db.models import Case, When, IntegerField
+
+
+class MeAuthView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        response = {}
+
+        response["phone"] = UserSerializer(user).data["phone"]
+
+        if hasattr(user, "customer"):
+            response["role"] = "customer"
+
+        elif hasattr(user, "restaurant"):
+            restaurant = user.restaurant
+            response["role"] = "restaurant"
+            response["profile_complete"] = all([
+                restaurant.name,
+                restaurant.address,
+                restaurant.latitude,
+                restaurant.longitude,
+            ])
+
+        else:
+            raise PermissionDenied("User has no valid role.")
+
+        return Response(response, status=status.HTTP_200_OK)
 
 
 @extend_schema(
@@ -294,6 +325,15 @@ class AllRestaurantOrdersView(APIView):
         response.headers["X-Deprecated"] = "Use POST /me/orders/"
         return response
 
+DEFAULT_STATUS_ORDER = [#Unused.
+    "pending",
+    "accepted",
+    "done",
+    "failed",
+    "recieved",
+    "canceled",
+]
+
 @extend_schema(
     responses=OrderSerializer(many=True)
 )
@@ -312,28 +352,42 @@ class MyOrdersView(APIView):
 
         # role-based queryset
         if hasattr(user, "customer"):
-            queryset = Order.objects.filter(
-                customer=user.customer
-            )
+            queryset = Order.objects.filter(customer=user.customer)
+            role = "customer"
 
         elif hasattr(user, "restaurant"):
-            queryset = Order.objects.filter(
-                restaurant=user.restaurant
-            )
+            queryset = Order.objects.filter(restaurant=user.restaurant)
+            role = "restaurant"
 
         else:
             raise PermissionDenied("User has no valid role.")
 
+        # filter statuses if provided
         if statuses:
             queryset = queryset.filter(status__in=statuses)
 
-        queryset = queryset.order_by("-id")
+            # custom ordering ONLY when statuses are provided
+            status_ordering = Case(
+                *[
+                    When(status=status, then=pos)
+                    for pos, status in enumerate(statuses)
+                ],
+                output_field=IntegerField(),
+            )
+
+            queryset = queryset.order_by(
+                status_ordering,
+                "-id",
+            )
+        else:
+            # default ordering: newest first, no status grouping
+            queryset = queryset.order_by("-id")
 
         paginator = Paginator(queryset, page_size)
         page_obj = paginator.get_page(page)
 
         return Response({
-            "role": "customer" if hasattr(user, "customer") else "restaurant",
+            "role": role,
             "pagination": {
                 "page": page,
                 "page_size": page_size,
@@ -347,6 +401,8 @@ class MyOrdersView(APIView):
                 many=True
             ).data
         })
+
+
 
 
 class LeaveRatingView(APIView):
@@ -367,4 +423,85 @@ class LeaveRatingView(APIView):
         return Response(
             RatingSerializer(rating).data,
             status=status.HTTP_201_CREATED
+        )
+
+
+class OrderStatusUpdateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    CUSTOMER_TRANSITIONS = {
+        "pending": ["canceled"],
+        "accepted": ["canceled"],
+        "done": ["recieved"],
+    }
+
+    RESTAURANT_TRANSITIONS = {
+        "pending": ["accepted", "failed"],
+        "accepted": ["done", "failed"],
+    }
+
+    TERMINAL_STATES = {"canceled", "failed", "recieved"}
+
+    def post(self, request):
+        order_id = request.data.get("order_id")
+        new_status = request.data.get("new_status")
+
+        if not order_id or not new_status:
+            return Response(
+                {"detail": "order_id and new_status are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = request.user
+
+        # Fetch order with ownership check
+        if hasattr(user, "customer"):
+            order = get_object_or_404(
+                Order,
+                id=order_id,
+                customer=user.customer,
+            )
+            transitions = self.CUSTOMER_TRANSITIONS
+
+        elif hasattr(user, "restaurant"):
+            order = get_object_or_404(
+                Order,
+                id=order_id,
+                restaurant=user.restaurant,
+            )
+            transitions = self.RESTAURANT_TRANSITIONS
+
+        else:
+            raise PermissionDenied("User has no valid role.")
+
+        current_status = order.status
+
+        # Terminal states cannot be changed
+        if current_status in self.TERMINAL_STATES:
+            return Response(
+                {"detail": "Order can no longer be modified"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        allowed_next = transitions.get(current_status, [])
+
+        if new_status not in allowed_next:
+            return Response(
+                {
+                    "detail": "Invalid status transition",
+                    "current_status": current_status,
+                    "allowed_next": allowed_next,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        order.status = new_status
+        order.save(update_fields=["status"])
+
+        return Response(
+            {
+                "message": "Order status updated successfully",
+                "order": OrderSerializer(order).data,
+            },
+            status=status.HTTP_200_OK,
         )

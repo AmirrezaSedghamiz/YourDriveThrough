@@ -66,7 +66,7 @@ class MenuItem(models.Model):
     name = models.CharField(max_length=255)
     description = models.CharField(max_length=1024)
     price = models.IntegerField()
-    expected_duration = models.TimeField()
+    expected_duration = models.IntegerField()
     categories = models.ManyToManyField(Category, related_name="items")
     image = models.ImageField()
     is_active = models.BooleanField(default=True)
