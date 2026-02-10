@@ -2,7 +2,7 @@
 import 'dart:convert';
 
 import 'package:application/SourceDesign/Enums/OrderStatus.dart';
-import 'package:application/SourceDesign/Models/Item.dart';
+import 'package:application/SourceDesign/Models/ItemOrder.dart';
 
 class Order {
   int id;
@@ -42,7 +42,7 @@ class Order {
       id: map['id'] as int,
       customerId: map['customer_id'] as int,
       restaurantId: map['restaurant_id'] as int,
-      createdAt: map['created_at'],
+      createdAt: DateTime.parse(map['created_at'] as String),
       expectedDuration: map['expected_duration'] as int,
       total: map['total'] as num,
       items: List<ItemOrder>.from((map['items']).map<ItemOrder>((x) => ItemOrder.fromMap(x as Map<String,dynamic>),),),

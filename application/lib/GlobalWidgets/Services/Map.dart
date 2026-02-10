@@ -12,7 +12,7 @@ import 'package:application/GlobalWidgets/Services/MapWidgets/FloatingButtons.da
 import 'package:application/GlobalWidgets/Services/MapWidgets/MapWidget.dart';
 import 'package:application/GlobalWidgets/Services/MapWidgets/Serach.dart';
 import 'package:application/Handlers/Repository/ManagerRepo.dart';
-import 'package:application/MainProgram/Manager/DashboardManager.dart';
+import 'package:application/MainProgram/Manager/DashboardManager/DashboardManager.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -171,7 +171,7 @@ class _MapBuilderState extends State<MapBuilder> {
                         if (value == ConnectionStates.Success) {
                           WidgetsBinding.instance.addPostFrameCallback((_) {
                             NavigationService.popAllAndPush(
-                              AppRoutes.fade(DashboardManager()),
+                              AppRoutes.fade(DashboardManager(initialPage: 0,)),
                             );
                           });
                         }
