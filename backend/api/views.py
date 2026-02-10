@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 from rest_framework import status, permissions
 from rest_framework import generics
-from .serializers import LoginSerializer, RestaurantUpdateSerializer
+from .serializers import CustomerSerializer, LoginSerializer, RestaurantUpdateSerializer, UserSerializer
 from .serializers import SignupSerializer
 from .serializers import RestaurantSerializer
 from .serializers import ClosestRestaurantsSerializer
@@ -39,6 +39,30 @@ class SignupView(APIView):
             return Response(result, status=status.HTTP_201_CREATED)
         print(serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+class MeView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        data = {
+            "user": UserSerializer(user).data,
+        }
+
+        if hasattr(user, "restaurant"):
+            data["role"] = "restaurant"
+            data["restaurant"] = RestaurantSerializer(user.restaurant).data
+
+        elif hasattr(user, "customer"):
+            data["role"] = "customer"
+            data["customer"] = CustomerSerializer(user.customer).data
+
+        else:
+            data["role"] = "unknown"
+
+        return Response(data)
 
 
 class RestaurantMeUpdateView(APIView):

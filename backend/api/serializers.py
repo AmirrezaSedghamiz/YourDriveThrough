@@ -105,6 +105,23 @@ class RestaurantSerializer(serializers.ModelSerializer):
         ])
 
 
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "phone",
+            "is_active",
+            "last_login",
+        )
+
+
+class CustomerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Customer
+        fields = ("id",)
+
+
 class RestaurantUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Restaurant

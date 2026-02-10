@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import LoginView
+from .views import LoginView, MeView
 from .views import SignupView
 from .views import RestaurantMeUpdateView
 from .views import GetClosestRestaurantsView
@@ -23,10 +23,12 @@ urlpatterns = [
     path("restaurant/orders/pending/", PendingRestaurantOrdersView.as_view()),
     path("restaurant/orders/all/", AllRestaurantOrdersView.as_view()),
     path("restaurants/<int:restaurant_id>/menu/",RestaurantMenuGroupedView.as_view()),
-    
+
     # New endpoint for handling current user.
+    path("me/", MeView.as_view(), name="me"),
     path("me/restaurant/", RestaurantMeUpdateView.as_view(), name="restaurant_me_update"),
 
     # Deprecated endpoint for handling current user (to be removed in the future).
     path("restaurant/complete_profile/", RestaurantMeUpdateView.as_view(), name="restaurant_complete_profile"),
 ]
+
