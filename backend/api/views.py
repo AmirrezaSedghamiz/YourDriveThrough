@@ -32,6 +32,8 @@ class MeAuthView(APIView):
 
         response = {}
 
+        response["phone"] = UserSerializer(user).data["phone"]
+
         if hasattr(user, "customer"):
             response["role"] = "customer"
 
