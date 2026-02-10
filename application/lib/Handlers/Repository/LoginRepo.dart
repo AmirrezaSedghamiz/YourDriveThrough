@@ -69,8 +69,6 @@ class LoginRepo {
   }
 
   Future<dynamic> _signUpHandler(Response response) async {
-    print(response.data);
-    print(response.statusCode);
     if (response.statusCode == 200 || response.statusCode == 201) {
       await TokenStore.saveTokens(
         response.data["access_token"],
@@ -108,5 +106,84 @@ class LoginRepo {
       "password": password,
       "role": role,
     });
+  }
+
+  //////////////////////////////////////////////////////////
+  Future<Response> _verifyTokenRequest(Map<String, dynamic> kwargs) async {
+    return await HttpClient.instanceWithoutVersion.post(
+      'token/verify/',
+      options: HttpClient.globalHeader,
+      data: {"token": await TokenStore.getAccessToken()},
+    );
+  }
+
+  Future<dynamic> _verifyTokenHandler(Response response) async {
+    print(response.data);
+    print(response.statusCode);
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return true;
+    } else {
+      if (response.statusCode == 400) {
+        return ConnectionStates.BadRequest;
+      } else if (response.statusCode == 401) {
+        return false;
+      } else if (response.statusCode == 500) {
+        return ConnectionStates.DataBase;
+      } else if (response.statusCode == 502) {
+        return ConnectionStates.BadGateWay;
+      } else if (response.statusCode == 504) {
+        return ConnectionStates.GateWayTimeOut;
+      } else {
+        return ConnectionStates.Unexpected;
+      }
+    }
+  }
+
+  Future<dynamic> _verifyTokenKwargBuilder(Map<String, dynamic> kwargs) async {
+    return handleErrors(kwargs, _verifyTokenRequest, _verifyTokenHandler);
+  }
+
+  Future<dynamic> verifyToken() async {
+    return _verifyTokenKwargBuilder({});
+  }
+
+  /////////////////////////
+  Future<Response> _getRoleRequest(Map<String, dynamic> kwargs) async {
+    return await HttpClient.instance.get(
+      'me/auth/',
+      options: HttpClient.globalHeader,
+    );
+  }
+
+  Future<dynamic> _getRoleHandler(Response response) async {
+    if (response.statusCode == 200) {
+      return {
+        "role": response.data["role"],
+        "complete": response.data["profile_complete"] ?? true,
+        "username": response.data['username']
+      };
+    } else {
+      if (response.statusCode == 400) {
+        return ConnectionStates.BadRequest;
+      } else if (response.statusCode == 401) {
+        return ConnectionStates.Unauthorized;
+      } else if (response.statusCode == 500) {
+        return ConnectionStates.DataBase;
+      } else if (response.statusCode == 502) {
+        return ConnectionStates.BadGateWay;
+      } else if (response.statusCode == 504) {
+        return ConnectionStates.GateWayTimeOut;
+      } else {
+        return ConnectionStates.Unexpected;
+      }
+    }
+  }
+
+  Future<dynamic> _getRoleKwargBuilder(Map<String, dynamic> kwargs) async {
+    return handleErrors(kwargs, _getRoleRequest, _getRoleHandler);
+  }
+
+  Future<dynamic> getRole() async {
+    return _getRoleKwargBuilder({});
   }
 }

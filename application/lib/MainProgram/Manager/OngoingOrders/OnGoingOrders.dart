@@ -15,7 +15,12 @@ class OnGoingOrdersPagedList extends StatefulWidget {
     this.firstPageKey = 1,
   });
 
-  final Future<PageResult<Order>> Function(int pageKey) fetchPage;
+  final Future<dynamic> Function({
+    required int pageKey,
+    required int pageSize,
+    required List<String>? statuses,
+  })
+  fetchPage;
 
   final Future<void> Function(Order order)? onMarkReady;
 
@@ -42,7 +47,9 @@ class _OnGoingOrdersPagedListState extends State<OnGoingOrdersPagedList>
 
   Future<void> _fetchPage(int pageKey) async {
     try {
-      final res = await widget.fetchPage(pageKey);
+      final res = await widget.fetchPage(pageKey: pageKey,
+        pageSize: widget.pageSize,
+        statuses: ["accepted"],);
 
       if (res.isLastPage) {
         _pagingController.appendLastPage(res.items);

@@ -1,6 +1,7 @@
 import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
 import 'package:application/GlobalWidgets/ReusableComponents/AppBar.dart';
 import 'package:application/GlobalWidgets/ReusableComponents/FlexSwitch.dart';
+import 'package:application/Handlers/Repository/OrderRepo.dart';
 import 'package:application/MainProgram/Manager/DashboardManager/DashboardManagerState.dart';
 import 'package:application/MainProgram/Manager/DashboardManager/DashboardManagerViewModel.dart';
 import 'package:application/MainProgram/Manager/HistoryOrders/HistoryOrders.dart';
@@ -142,20 +143,20 @@ class _DashboardManagerState extends ConsumerState<DashboardManager>
           },
           children: [
             PendingOrdersPagedList(
-              fetchPage: _api.fetchPage,
+              fetchPage: OrderRepo().getOrderList,
               onAccept: (order) => _api.accept(order.id),
               onDecline: (order) => _api.decline(order.id),
               pageSize: 10,
               firstPageKey: 1,
             ),
             OnGoingOrdersPagedList(
-              fetchPage: _api.fetchPage,
+              fetchPage: OrderRepo().getOrderList,
               onMarkReady: (order) => _api.accept(order.id),
               pageSize: 10,
               firstPageKey: 1,
             ),
             OrdersHistoryPagedList(
-              fetchPage: _api.fetchPage,
+              fetchPage: OrderRepo().getOrderList,
             ),
              
             //  SizedBox(),

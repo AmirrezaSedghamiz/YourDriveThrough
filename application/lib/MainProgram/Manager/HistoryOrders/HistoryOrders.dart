@@ -18,7 +18,12 @@ class OrdersHistoryPagedList extends StatefulWidget {
     this.firstPageKey = 1,
   });
 
-  final Future<PageResult<Order>> Function(int pageKey) fetchPage;
+  final Future<dynamic> Function({
+    required int pageKey,
+    required int pageSize,
+    required List<String>? statuses,
+  })
+  fetchPage;
 
   /// If null, we just remove from UI (optimistic only).
   final Future<void> Function(Order order)? onReopen;
@@ -46,7 +51,11 @@ class _OrdersHistoryPagedListState extends State<OrdersHistoryPagedList>
 
   Future<void> _fetchPage(int pageKey) async {
     try {
-      final res = await widget.fetchPage(pageKey);
+      final res = await widget.fetchPage(
+        pageKey: pageKey,
+        pageSize: widget.pageSize,
+        statuses: null,
+      );
       if (res.isLastPage) {
         _pagingController.appendLastPage(res.items);
       } else {

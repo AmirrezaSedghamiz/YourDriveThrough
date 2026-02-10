@@ -1,7 +1,10 @@
 import 'dart:ui';
 
 import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
+import 'package:application/GlobalWidgets/NavigationServices/NavigationService.dart';
+import 'package:application/GlobalWidgets/NavigationServices/RouteFactory.dart';
 import 'package:application/Handlers/TokenHandler.dart';
+import 'package:application/MainProgram/Login/Login.dart';
 import 'package:application/MainProgram/OnBoarding/SubPages/OnBoarding1.dart';
 import 'package:application/MainProgram/OnBoarding/SubPages/OnBoarding2.dart';
 import 'package:application/MainProgram/OnBoarding/SubPages/OnBoarding3.dart';
@@ -89,8 +92,8 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
                   onPressed: _currentPage == 3
                       ? () {
                           TokenStore.setInOnboarding(true);
-                          // AnimationNavigation.navigateReplace(
-                          //     const LoginPage1(), context);
+                          var route = AppRoutes.fade(LoginPage());
+                          NavigationService.popAllAndPush(route);
                         }
                       : () {
                           _pageController.nextPage(
@@ -125,8 +128,8 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
                     child: TextButton(
                       onPressed: () {
                         TokenStore.setInOnboarding(true);
-                        // AnimationNavigation.navigateReplace(
-                        //     const LoginPage1(), context);
+                        var route = AppRoutes.fade(LoginPage());
+                        NavigationService.replace(route);
                       },
                       child: Text(
                         "Skip",

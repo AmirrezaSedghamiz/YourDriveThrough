@@ -41,10 +41,10 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       navigatorKey: NavigationService.navigatorKey,
       theme: AppTheme.lightTheme,
-      // home: SplashScreen(),
+      home: SplashScreen(),
       // home: OnBoardingScreen(),
       // home: MapBuilder(),
-      home: DashboardManager(initialPage: 0)
+      // home: DashboardManager(initialPage: 0)
       // home: LoginPage(),
       // home: DashboardCustomer(initialPage: 0),
     );

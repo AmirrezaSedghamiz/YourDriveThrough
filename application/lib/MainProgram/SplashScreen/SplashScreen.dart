@@ -1,4 +1,15 @@
 import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
+import 'package:application/GlobalWidgets/InternetManager/ConnectionStates.dart';
+import 'package:application/GlobalWidgets/NavigationServices/NavigationService.dart';
+import 'package:application/GlobalWidgets/NavigationServices/RouteFactory.dart';
+import 'package:application/GlobalWidgets/Services/Map.dart';
+import 'package:application/Handlers/Repository/LoginRepo.dart';
+import 'package:application/Handlers/TokenHandler.dart';
+import 'package:application/MainProgram/Customer/DashboardCustomer/DashboardCustomer.dart';
+import 'package:application/MainProgram/Login/Login.dart';
+import 'package:application/MainProgram/Manager/DashboardManager/DashboardManager.dart';
+import 'package:application/MainProgram/OnBoarding/OnBoarding.dart';
+import 'package:application/SourceDesign/Enums/AccountTypes.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
@@ -43,6 +54,42 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
       duration: Duration(seconds: 100),
     )..repeat(reverse: true);
+
+    _goNextAfterDelay();
+  }
+
+  Future<void> _goNextAfterDelay() async {
+    await Future.delayed(const Duration(seconds: 3));
+
+    final dontGoToOnboarding = (await TokenStore.getInOnboarding() ?? false);
+    if (!dontGoToOnboarding) {
+      var route = AppRoutes.fade(OnBoardingScreen());
+      NavigationService.replace(route);
+      return;
+    }
+
+    final data = await LoginRepo().verifyToken();
+
+    if (!mounted) return;
+
+    if (data != ConnectionStates && data) {
+      final role = await LoginRepo().getRole();
+      var route = (role["role"] == "customer"
+            ? AppRoutes.fade(DashboardCustomer(initialPage: 0))
+            : role["complete"]
+            ? AppRoutes.fade(DashboardManager(initialPage: 0,))
+            : AppRoutes.fade(
+                MapBuilder(
+                  username: role["username"] ?? ""
+                ),
+              ));
+      NavigationService.replace(route);
+      return;
+    } else {
+      var route = AppRoutes.fade(LoginPage());
+      NavigationService.replace(route);
+      return;
+    }
   }
 
   @override
@@ -117,8 +164,9 @@ class _SplashScreenState extends State<SplashScreen>
                   SizedBox(height: 8),
                   Text(
                     "Drive-Through Made Easy",
-                    style: Theme.of(context).textTheme.headlineLarge!
-                        .copyWith(color: AppColors.white.withOpacity(0.8)),
+                    style: Theme.of(context).textTheme.headlineLarge!.copyWith(
+                      color: AppColors.white.withOpacity(0.8),
+                    ),
                   ),
                   SizedBox(height: 16),
                   Text(
@@ -128,25 +176,30 @@ class _SplashScreenState extends State<SplashScreen>
                       color: AppColors.white.withOpacity(0.7),
                     ),
                   ),
-                  SizedBox(height: 150,
-                  child: isLoading ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        LoadingAnimationWidget.staggeredDotsWave(
-                          color: AppColors.white.withOpacity(0.7),
-                          size: 60,
-                        ),
-                        Text(
-                          "Loading your experience",
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyLarge!.copyWith(
-                            color: AppColors.white.withOpacity(0.7),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ) : null,),
+                  SizedBox(
+                    height: 150,
+                    child: isLoading
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                LoadingAnimationWidget.staggeredDotsWave(
+                                  color: AppColors.white.withOpacity(0.7),
+                                  size: 60,
+                                ),
+                                Text(
+                                  "Loading your experience",
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(context).textTheme.bodyLarge!
+                                      .copyWith(
+                                        color: AppColors.white.withOpacity(0.7),
+                                      ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : null,
+                  ),
                 ],
               ),
             ),
@@ -203,7 +256,11 @@ class _SplashScreenState extends State<SplashScreen>
             shape: BoxShape.circle,
           ),
           child: Center(
-            child: Icon(icon, color: AppColors.white.withOpacity(0.8), size: 30),
+            child: Icon(
+              icon,
+              color: AppColors.white.withOpacity(0.8),
+              size: 30,
+            ),
           ),
         ),
         SizedBox(height: 6),
