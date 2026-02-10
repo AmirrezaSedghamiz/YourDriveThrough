@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 from rest_framework import status, permissions
 from rest_framework import generics
-from .serializers import LoginSerializer
+from .serializers import LoginSerializer, RestaurantUpdateSerializer
 from .serializers import SignupSerializer
 from .serializers import RestaurantSerializer
 from .serializers import ClosestRestaurantsSerializer
@@ -41,27 +41,30 @@ class SignupView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class CompleteRestaurantProfileView(APIView):
+class RestaurantMeUpdateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        try:
-            restaurant = Restaurant.objects.get(user=request.user)
-        except Restaurant.DoesNotExist:
-            return Response(
-                {"error": "Access violation: not a restaurant"},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        response = self.patch(request)
+        response.headers["X-Deprecated"] = "Use PATCH /me/restaurant/"
+        return response
 
-        serializer = RestaurantSerializer(restaurant, data=request.data, partial=True)
-        print(serializer)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({
-                "message": "Profile updated successfully",
-                "profile_complete": serializer.data["profile_complete"]
-            }, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def patch(self, request):
+        if not hasattr(request.user, "restaurant"):
+            raise PermissionDenied("Only restaurants can update this.")
+
+        restaurant = request.user.restaurant
+
+        serializer = RestaurantUpdateSerializer(
+            restaurant,
+            data=request.data,
+            partial=True
+        )
+
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(serializer.data)
 
 
 class GetClosestRestaurantsView(APIView):

@@ -105,6 +105,19 @@ class RestaurantSerializer(serializers.ModelSerializer):
         ])
 
 
+class RestaurantUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Restaurant
+        fields = (
+            "name",
+            "address",
+            "latitude",
+            "longitude",
+            "image",
+            "is_open",
+        )
+
+
 class ClosestRestaurantsSerializer(serializers.Serializer):
     latitude = serializers.FloatField()
     longitude = serializers.FloatField()
