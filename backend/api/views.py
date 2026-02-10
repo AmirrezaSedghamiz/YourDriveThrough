@@ -94,7 +94,17 @@ class RestaurantMeUpdateView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
-        return Response(serializer.data)
+        # Reuse RestaurantSerializer for derived fields
+        response_data = serializer.data
+        response_data["profile_complete"] = all([
+            restaurant.name,
+            restaurant.address,
+            restaurant.latitude,
+            restaurant.longitude,
+        ])
+
+        return Response(response_data)
+
 
 @extend_schema(
     request=ClosestRestaurantsSerializer,
@@ -105,32 +115,54 @@ class GetClosestRestaurantsView(APIView):
 
     def post(self, request):
         serializer = ClosestRestaurantsSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
 
         lat = serializer.validated_data["latitude"]
         lon = serializer.validated_data["longitude"]
-        index = serializer.validated_data["index"]
-        count = serializer.validated_data["count"]
+        page = serializer.validated_data["page"]
+        page_size = serializer.validated_data["page_size"]
 
-        restaurants = Restaurant.objects.exclude(latitude=None).exclude(longitude=None)
+        restaurants = Restaurant.objects.exclude(
+            latitude=None
+        ).exclude(
+            longitude=None
+        )
 
         # Compute distances
         distances = []
         for r in restaurants:
-            dist = haversine(lat, lon, float(r.latitude), float(r.longitude))
+            dist = haversine(
+                lat,
+                lon,
+                float(r.latitude),
+                float(r.longitude),
+            )
             distances.append((r, dist))
 
         # Sort by distance
         distances.sort(key=lambda x: x[1])
 
-        # Apply pagination
-        selected = distances[index:index+count]
-        selected_restaurants = [r[0] for r in selected]
+        # Extract ordered restaurants
+        ordered_restaurants = [r[0] for r in distances]
 
-        # Serialize full info
-        serializer = RestaurantSerializer(selected_restaurants, many=True)
-        return Response({"restaurants": serializer.data}, status=status.HTTP_200_OK)
+        # Proper pagination (same as MyOrdersView)
+        paginator = Paginator(ordered_restaurants, page_size)
+        page_obj = paginator.get_page(page)
+
+        return Response({
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total_pages": paginator.num_pages,
+                "total_items": paginator.count,
+                "has_next": page_obj.has_next(),
+                "has_previous": page_obj.has_previous(),
+            },
+            "results": RestaurantSerializer(
+                page_obj.object_list,
+                many=True
+            ).data
+        }, status=status.HTTP_200_OK)
 
 @extend_schema(
     responses=CategorySerializer(many=True),
