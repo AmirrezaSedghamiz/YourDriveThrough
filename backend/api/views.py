@@ -22,6 +22,7 @@ from collections import defaultdict
 from rest_framework.exceptions import NotFound
 from drf_spectacular.utils import extend_schema
 from django.shortcuts import get_object_or_404
+from django.db.models import Case, When, IntegerField
 
 
 class MeAuthView(APIView):
@@ -324,6 +325,15 @@ class AllRestaurantOrdersView(APIView):
         response.headers["X-Deprecated"] = "Use POST /me/orders/"
         return response
 
+DEFAULT_STATUS_ORDER = [
+    "pending",
+    "accepted",
+    "done",
+    "failed",
+    "recieved",
+    "canceled",
+]
+
 @extend_schema(
     responses=OrderSerializer(many=True)
 )
@@ -342,28 +352,42 @@ class MyOrdersView(APIView):
 
         # role-based queryset
         if hasattr(user, "customer"):
-            queryset = Order.objects.filter(
-                customer=user.customer
-            )
+            queryset = Order.objects.filter(customer=user.customer)
+            role = "customer"
 
         elif hasattr(user, "restaurant"):
-            queryset = Order.objects.filter(
-                restaurant=user.restaurant
-            )
+            queryset = Order.objects.filter(restaurant=user.restaurant)
+            role = "restaurant"
 
         else:
             raise PermissionDenied("User has no valid role.")
 
+        # filter statuses if provided
         if statuses:
             queryset = queryset.filter(status__in=statuses)
+            status_order = statuses
+        else:
+            status_order = DEFAULT_STATUS_ORDER
 
-        queryset = queryset.order_by("-id")
+        # build custom status ordering
+        status_ordering = Case(
+            *[
+                When(status=status, then=pos)
+                for pos, status in enumerate(status_order)
+            ],
+            output_field=IntegerField(),
+        )
+
+        queryset = queryset.order_by(
+            status_ordering,
+            "-id",
+        )
 
         paginator = Paginator(queryset, page_size)
         page_obj = paginator.get_page(page)
 
         return Response({
-            "role": "customer" if hasattr(user, "customer") else "restaurant",
+            "role": role,
             "pagination": {
                 "page": page,
                 "page_size": page_size,
@@ -377,6 +401,7 @@ class MyOrdersView(APIView):
                 many=True
             ).data
         })
+
 
 
 class LeaveRatingView(APIView):
