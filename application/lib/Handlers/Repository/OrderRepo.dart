@@ -35,7 +35,7 @@ class OrderRepo {
       for (var i in response.data["results"]) {
         orders.add(Order.fromMap(i));
       }
-      return orders;
+      return {"orders" :orders, "isLastPage" : !(response.data["pagination"]["has_next"])};
     } else if (response.statusCode == 400) {
       return ConnectionStates.BadRequest;
     } else if (response.statusCode == 401) {

@@ -52,10 +52,10 @@ class _PendingOrdersPagedListState extends State<PendingOrdersPagedList>
         pageSize: widget.pageSize,
         statuses: ["pending"],);
 
-      if (res.isLastPage) {
-        _pagingController.appendLastPage(res.items);
+      if (res["isLastPage"]) {
+        _pagingController.appendLastPage(res["orders"]);
       } else {
-        _pagingController.appendPage(res.items, pageKey + 1);
+        _pagingController.appendPage(res["orders"], pageKey + 1);
       }
     } catch (e) {
       _pagingController.error = e;

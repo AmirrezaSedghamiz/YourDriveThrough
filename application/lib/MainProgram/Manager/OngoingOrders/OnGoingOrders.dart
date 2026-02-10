@@ -51,10 +51,10 @@ class _OnGoingOrdersPagedListState extends State<OnGoingOrdersPagedList>
         pageSize: widget.pageSize,
         statuses: ["accepted"],);
 
-      if (res.isLastPage) {
-        _pagingController.appendLastPage(res.items);
+      if (res["isLastPage"]) {
+        _pagingController.appendLastPage(res["orders"]);
       } else {
-        _pagingController.appendPage(res.items, pageKey + 1);
+        _pagingController.appendPage(res["orders"], pageKey + 1);
       }
     } catch (e) {
       _pagingController.error = e;

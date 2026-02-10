@@ -110,10 +110,15 @@ class LoginRepo {
 
   //////////////////////////////////////////////////////////
   Future<Response> _verifyTokenRequest(Map<String, dynamic> kwargs) async {
+    print({"token": await TokenStore.getAccessToken()});
     return await HttpClient.instanceWithoutVersion.post(
       'token/verify/',
       options: HttpClient.globalHeader,
-      data: {"token": await TokenStore.getAccessToken()},
+      data: {
+        "token":
+            (await TokenStore.getAccessToken())?.replaceAll("Bearer ", "") ??
+            "",
+      },
     );
   }
 
@@ -149,18 +154,26 @@ class LoginRepo {
 
   /////////////////////////
   Future<Response> _getRoleRequest(Map<String, dynamic> kwargs) async {
+    Options options = Options(
+      followRedirects: false,
+      validateStatus: (status) {
+        return status! < 600;
+      },
+      headers: {'Authorization': await TokenStore.getAccessToken()},
+    );
     return await HttpClient.instance.get(
       'me/auth/',
-      options: HttpClient.globalHeader,
+      options: options,
     );
   }
 
   Future<dynamic> _getRoleHandler(Response response) async {
+    print(response.data);
     if (response.statusCode == 200) {
       return {
         "role": response.data["role"],
         "complete": response.data["profile_complete"] ?? true,
-        "username": response.data['username']
+        "username": response.data['phone'],
       };
     } else {
       if (response.statusCode == 400) {
