@@ -17,13 +17,15 @@ from .models import Restaurant, Category, Customer, Order, MenuItem
 from .utils import haversine
 from .serializers import OrderCreateSerializer
 from .serializers import OrderSerializer
-from .serializers import PaginationSerializer
 from .serializers import MyOrdersFilterSerializer
 from collections import defaultdict
 from rest_framework.exceptions import NotFound
+from drf_spectacular.utils import extend_schema
 
 
-
+@extend_schema(
+    request=LoginSerializer,
+)
 class LoginView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -32,7 +34,9 @@ class LoginView(APIView):
         print(serializer.errors)
         return Response(serializer.errors, status=status.HTTP_403_FORBIDDEN)
 
-
+@extend_schema(
+    request=SignupSerializer,
+)
 class SignupView(APIView):
     def post(self, request):
         serializer = SignupSerializer(data=request.data)
@@ -92,7 +96,10 @@ class RestaurantMeUpdateView(APIView):
 
         return Response(serializer.data)
 
-
+@extend_schema(
+    request=ClosestRestaurantsSerializer,
+    responses=RestaurantSerializer(many=True),
+)
 class GetClosestRestaurantsView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -125,7 +132,9 @@ class GetClosestRestaurantsView(APIView):
         serializer = RestaurantSerializer(selected_restaurants, many=True)
         return Response({"restaurants": serializer.data}, status=status.HTTP_200_OK)
 
-
+@extend_schema(
+    responses=CategorySerializer(many=True),
+)
 class GetCategoriesView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -253,7 +262,9 @@ class AllRestaurantOrdersView(APIView):
         response.headers["X-Deprecated"] = "Use POST /me/orders/"
         return response
 
-
+@extend_schema(
+    responses=OrderSerializer(many=True)
+)
 class MyOrdersView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 

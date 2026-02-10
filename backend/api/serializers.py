@@ -31,7 +31,6 @@ class LoginSerializer(serializers.Serializer):
                 restaurant.address,
                 restaurant.latitude,
                 restaurant.longitude,
-                # restaurant.image
             ])
 
         else:
