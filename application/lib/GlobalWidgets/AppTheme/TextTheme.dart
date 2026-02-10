@@ -16,12 +16,12 @@ class AppTextTheme {
     bodyLarge: TextStyle(
       fontSize: 16,
       fontWeight: FontWeight.w500,
-      color: AppColors.coal,
+      color: Colors.black,
     ),
     bodyMedium: TextStyle(
       fontSize: 14,
       fontWeight: FontWeight.w500,
-      color: AppColors.coal,
+      color: Colors.black,
     ),
     labelLarge: TextStyle(
       fontSize: 14,

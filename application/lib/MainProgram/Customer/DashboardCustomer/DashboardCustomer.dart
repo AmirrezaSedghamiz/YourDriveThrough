@@ -1,40 +1,31 @@
 import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
+import 'package:application/MainProgram/Customer/DashboardCustomer/DashboardCustomerViewModel.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 
-class DashboardCustomer extends StatefulWidget {
+class DashboardCustomer extends ConsumerStatefulWidget {
   final int initialPage;
   const DashboardCustomer({super.key, required this.initialPage});
 
   @override
-  State<DashboardCustomer> createState() => _DashboardCustomerState();
+  ConsumerState<DashboardCustomer> createState() => _DashboardCustomerState();
 }
 
-class _DashboardCustomerState extends State<DashboardCustomer> {
+class _DashboardCustomerState extends ConsumerState<DashboardCustomer> {
   late final PageController _pageController;
-  late int _selectedIndex;
   DateTime? _lastPressedTime; // Just track the last press time
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: widget.initialPage);
-    _selectedIndex = widget.initialPage;
-  }
-
-  void _onItemTapped(int index) {
-    // Only rebuild if index actually changes
-    if (_selectedIndex != index) {
-      setState(() {
-        _selectedIndex = index;
-      });
-    }
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref
+          .read(dashboardCustomerViewModelProvider.notifier)
+          .togglePage(widget.initialPage);
+    });
   }
 
   Future<bool> _onWillPop() async {
@@ -52,6 +43,9 @@ class _DashboardCustomerState extends State<DashboardCustomer> {
 
   @override
   Widget build(BuildContext context) {
+    final state = ref.watch(dashboardCustomerViewModelProvider);
+    final viewModel = ref.read(dashboardCustomerViewModelProvider.notifier);
+
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
@@ -60,27 +54,24 @@ class _DashboardCustomerState extends State<DashboardCustomer> {
           controller: _pageController,
           physics: const BouncingScrollPhysics(),
           onPageChanged: (index) {
-            // Only call setState if index actually changed
-            if (_selectedIndex != index) {
-              setState(() {
-                _selectedIndex = index;
-              });
-            }
+            viewModel.togglePage(index);
           },
-          children: const [
-            SizedBox(),
-            SizedBox(),
-            SizedBox(),
-            SizedBox(),
-          ],
+          children: const [SizedBox(), SizedBox(), SizedBox(), SizedBox()],
         ),
         bottomNavigationBar: Container(
           decoration: const BoxDecoration(
             boxShadow: [BoxShadow(color: Color(0x91656565), blurRadius: 6.5)],
           ),
           child: BottomNavigationBar(
-            currentIndex: _selectedIndex,
-            onTap: _onItemTapped,
+            currentIndex: state.currentPage,
+            onTap: (index) {
+              viewModel.togglePage(index);
+              _pageController.animateToPage(
+                index,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
+            },
             items: _buildNavigationItems(),
             selectedItemColor: AppColors.primary,
             unselectedItemColor: AppColors.metal,
@@ -111,10 +102,10 @@ class _DashboardCustomerState extends State<DashboardCustomer> {
 
   List<BottomNavigationBarItem> _buildNavigationItems() {
     return [
-      _navigationBarIcons(Icons.home, "home"),
-      _navigationBarIcons(Icons.map, "map"),
-      _navigationBarIcons(Icons.restaurant, "orders"),
-      _navigationBarIcons(Icons.person, "profile"),
+      _navigationBarIcons(Icons.home, "Home"),
+      _navigationBarIcons(Icons.map, "Map"),
+      _navigationBarIcons(Icons.restaurant, "Orders"),
+      _navigationBarIcons(Icons.person, "Profile"),
     ];
   }
 

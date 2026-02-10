@@ -6,9 +6,9 @@ import 'package:application/GlobalWidgets/ReusableComponents/CheckBox.dart';
 import 'package:application/GlobalWidgets/ReusableComponents/TabSwitch.dart';
 import 'package:application/GlobalWidgets/ReusableComponents/TextFields.dart';
 import 'package:application/GlobalWidgets/Services/Map.dart';
-import 'package:application/MainProgram/Customer/Dashboard.dart';
+import 'package:application/MainProgram/Customer/DashboardCustomer/DashboardCustomer.dart';
 import 'package:application/MainProgram/Login/LoginState.dart';
-import 'package:application/MainProgram/Manager/DashboardManager.dart';
+import 'package:application/MainProgram/Manager/DashboardManager/DashboardManager.dart';
 import 'package:application/SourceDesign/Enums/AccountTypes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -67,7 +67,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
         var route = (role == AccountType.customer
             ? AppRoutes.fade(DashboardCustomer(initialPage: 0))
             : next.isProfileComplete
-            ? AppRoutes.fade(DashboardManager())
+            ? AppRoutes.fade(DashboardManager(initialPage: 0,))
             : AppRoutes.fade(
                 MapBuilder(
                   username: next.username ?? ""
