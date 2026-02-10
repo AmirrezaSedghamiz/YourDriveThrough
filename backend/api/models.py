@@ -65,6 +65,9 @@ class Rating(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
     number = models.IntegerField()
 
+    class Meta:
+        unique_together = ("restaurant", "customer")
+
 
 class Review(models.Model):
     rating = models.OneToOneField(Rating, on_delete=models.CASCADE)

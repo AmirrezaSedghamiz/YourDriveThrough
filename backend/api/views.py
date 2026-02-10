@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 from rest_framework import status, permissions
 from rest_framework import generics
-from .serializers import CustomerSerializer, LoginSerializer, RestaurantUpdateSerializer, UserSerializer
+from .serializers import CustomerSerializer, LoginSerializer, RatingCreateSerializer, RatingSerializer, RestaurantUpdateSerializer, UserSerializer
 from .serializers import SignupSerializer
 from .serializers import RestaurantSerializer
 from .serializers import ClosestRestaurantsSerializer
@@ -304,3 +304,24 @@ class MyOrdersView(APIView):
                 many=True
             ).data
         })
+
+
+class LeaveRatingView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if not hasattr(request.user, "customer"):
+            raise PermissionDenied("Only customers can leave ratings.")
+
+        serializer = RatingCreateSerializer(
+            data=request.data,
+            context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+
+        rating = serializer.save()
+
+        return Response(
+            RatingSerializer(rating).data,
+            status=status.HTTP_201_CREATED
+        )

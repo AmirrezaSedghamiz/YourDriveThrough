@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import Customer, Restaurant, Category, MenuItem, Order, OrderItem
+from .models import Customer, Restaurant, Category, MenuItem, Order, OrderItem, Rating, Review
 from .exceptions import RoleNotFound
 
 
@@ -295,3 +295,65 @@ class MyOrdersFilterSerializer(serializers.Serializer):
         required=False,
         default=10
     )
+
+
+class RatingCreateSerializer(serializers.Serializer):
+    restaurant = serializers.IntegerField()
+    number = serializers.IntegerField(min_value=1, max_value=5)
+    description = serializers.CharField(
+        max_length=1024,
+        required=False,
+        allow_blank=True
+    )
+
+    def validate_restaurant(self, value):
+        if not Restaurant.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Restaurant does not exist.")
+        return value
+
+    def validate(self, data):
+        customer = self.context["request"].user.customer
+        restaurant_id = data["restaurant"]
+
+        if Rating.objects.filter(
+            customer=customer,
+            restaurant_id=restaurant_id
+        ).exists():
+            raise serializers.ValidationError(
+                "You have already rated this restaurant."
+            )
+
+        return data
+
+    def create(self, validated_data):
+        customer = self.context["request"].user.customer
+        restaurant = Restaurant.objects.get(id=validated_data["restaurant"])
+
+        rating = Rating.objects.create(
+            restaurant=restaurant,
+            customer=customer,
+            number=validated_data["number"]
+        )
+
+        description = validated_data.get("description")
+        if description:
+            Review.objects.create(
+                rating=rating,
+                describtion=description
+            )
+
+        return rating
+
+
+class RatingSerializer(serializers.ModelSerializer):
+    review = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Rating
+        fields = ("id", "number", "restaurant", "review")
+
+    def get_review(self, obj):
+        if hasattr(obj, "review"):
+            return obj.review.describtion
+        return None
+
