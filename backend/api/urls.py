@@ -10,6 +10,7 @@ from .views import ActiveRestaurantOrdersView
 from .views import PendingRestaurantOrdersView
 from .views import AllRestaurantOrdersView
 from .views import RestaurantMenuGroupedView
+from .views import MyOrdersFilterView
 
 
 urlpatterns = [
@@ -19,16 +20,17 @@ urlpatterns = [
     path("categories/", GetCategoriesView.as_view(), name="get_categories"),
     path("menu/save/", SaveMenuItemView.as_view(), name="save_menu_item"),
     path("orders/", OrderCreateView.as_view(), name="create_order"),
-    path("restaurant/orders/active/", ActiveRestaurantOrdersView.as_view()),
-    path("restaurant/orders/pending/", PendingRestaurantOrdersView.as_view()),
-    path("restaurant/orders/all/", AllRestaurantOrdersView.as_view()),
     path("restaurants/<int:restaurant_id>/menu/",RestaurantMenuGroupedView.as_view()),
 
     # New endpoint for handling current user.
     path("me/", MeView.as_view(), name="me"),
     path("me/restaurant/", RestaurantMeUpdateView.as_view(), name="restaurant_me_update"),
+    path("me/orders/", MyOrdersFilterView.as_view(), name="my_orders"),
 
     # Deprecated endpoint for handling current user (to be removed in the future).
     path("restaurant/complete_profile/", RestaurantMeUpdateView.as_view(), name="restaurant_complete_profile"),
+    path("restaurant/orders/active/", ActiveRestaurantOrdersView.as_view()),
+    path("restaurant/orders/pending/", PendingRestaurantOrdersView.as_view()),
+    path("restaurant/orders/all/", AllRestaurantOrdersView.as_view()),
 ]
 

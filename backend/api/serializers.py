@@ -234,31 +234,41 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         return order
 
 
-class OrderItemReadSerializer(serializers.ModelSerializer):
+class OrderItemSerializer(serializers.ModelSerializer):
     item_name = serializers.CharField(source="item.name", read_only=True)
+    price = serializers.IntegerField(source="item.price", read_only=True)
 
     class Meta:
         model = OrderItem
-        fields = ("id", "item_name", "quantity", "special")
+        fields = (
+            "id",
+            "item",
+            "item_name",
+            "price",
+            "quantity",
+            "special",
+        )
 
 
-class OrderReadSerializer(serializers.ModelSerializer):
-    items = OrderItemReadSerializer(
-        source="orderitem_set", many=True, read_only=True
+class OrderSerializer(serializers.ModelSerializer):
+    items = OrderItemSerializer(
+        source="orderitem_set",
+        many=True,
+        read_only=True
     )
-
-    customer_id = serializers.IntegerField(source="customer.id", read_only=True)
+    restaurant_name = serializers.CharField(source="restaurant.name", read_only=True)
+    customer_phone = serializers.CharField(source="customer.user.phone", read_only=True)
 
     class Meta:
         model = Order
         fields = (
             "id",
-            "customer_id",
-            "restaurant_id",
             "status",
-            "created_at",
-            "expected_duration",
             "total",
+            "start",
+            "expected_duration",
+            "restaurant_name",
+            "customer_phone",
             "items",
         )
 
@@ -271,3 +281,17 @@ class CategoryMenuSerializer(serializers.Serializer):
 class PaginationSerializer(serializers.Serializer):
     index = serializers.IntegerField(min_value=0)
     count = serializers.IntegerField(min_value=1, max_value=50)
+
+
+class MyOrdersFilterSerializer(serializers.Serializer):
+    statuses = serializers.ListField(
+        child=serializers.CharField(),
+        required=False
+    )
+    page = serializers.IntegerField(min_value=1, required=False, default=1)
+    page_size = serializers.IntegerField(
+        min_value=1,
+        max_value=100,
+        required=False,
+        default=10
+    )

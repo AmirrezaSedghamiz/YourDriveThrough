@@ -12,11 +12,13 @@ from .serializers import MenuItemSerializer
 from .serializers import CategoryMenuSerializer
 from django.db import transaction
 from django.utils import timezone
+from django.core.paginator import Paginator
 from .models import Restaurant, Category, Customer, Order, MenuItem
 from .utils import haversine
 from .serializers import OrderCreateSerializer
-from .serializers import OrderReadSerializer
+from .serializers import OrderSerializer
 from .serializers import PaginationSerializer
+from .serializers import MyOrdersFilterSerializer
 from collections import defaultdict
 from rest_framework.exceptions import NotFound
 
@@ -146,7 +148,7 @@ class SaveMenuItemView(APIView):
             )
 
         data = request.data.copy()
-        data["restaurant"] = restaurant.id  # enforce ownership
+        data["restaurant"] = restaurant.id
 
         serializer = MenuItemSerializer(data=data)
         if serializer.is_valid():
@@ -212,7 +214,7 @@ class OrderCreateView(generics.CreateAPIView):
 
 
 class ActiveRestaurantOrdersView(generics.ListAPIView):
-    serializer_class = OrderReadSerializer
+    serializer_class = OrderSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
@@ -234,7 +236,7 @@ class ActiveRestaurantOrdersView(generics.ListAPIView):
 
 
 class PendingRestaurantOrdersView(generics.ListAPIView):
-    serializer_class = OrderReadSerializer
+    serializer_class = OrderSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
@@ -256,7 +258,7 @@ class PendingRestaurantOrdersView(generics.ListAPIView):
 
 
 class AllRestaurantOrdersView(generics.ListAPIView):
-    serializer_class = OrderReadSerializer
+    serializer_class = OrderSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
@@ -302,3 +304,55 @@ class AllRestaurantOrdersView(generics.ListAPIView):
         serialized = self.get_serializer(page, many=True)
 
         return paginator.get_paginated_response(serialized.data)
+
+
+class MyOrdersView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        filter_serializer = MyOrdersFilterSerializer(data=request.data)
+        filter_serializer.is_valid(raise_exception=True)
+
+        statuses = filter_serializer.validated_data.get("statuses")
+        page = filter_serializer.validated_data["page"]
+        page_size = filter_serializer.validated_data["page_size"]
+
+        user = request.user
+
+        # role-based queryset
+        if hasattr(user, "customer"):
+            queryset = Order.objects.filter(
+                customer=user.customer
+            )
+
+        elif hasattr(user, "restaurant"):
+            queryset = Order.objects.filter(
+                restaurant=user.restaurant
+            )
+
+        else:
+            raise PermissionDenied("User has no valid role.")
+
+        if statuses:
+            queryset = queryset.filter(status__in=statuses)
+
+        queryset = queryset.order_by("-id")
+
+        paginator = Paginator(queryset, page_size)
+        page_obj = paginator.get_page(page)
+
+        return Response({
+            "role": "customer" if hasattr(user, "customer") else "restaurant",
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total_pages": paginator.num_pages,
+                "total_items": paginator.count,
+                "has_next": page_obj.has_next(),
+                "has_previous": page_obj.has_previous(),
+            },
+            "results": OrderSerializer(
+                page_obj.object_list,
+                many=True
+            ).data
+        })
