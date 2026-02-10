@@ -213,97 +213,45 @@ class OrderCreateView(generics.CreateAPIView):
             )
 
 
-class ActiveRestaurantOrdersView(generics.ListAPIView):
-    serializer_class = OrderSerializer
+# DEPRECATED: Use POST /me/orders/ with statuses=["accepted","done"]
+class ActiveRestaurantOrdersView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
-        try:
-            restaurant = Restaurant.objects.get(user=self.request.user)
-        except Restaurant.DoesNotExist:
-            raise PermissionDenied("Only restaurants can access this endpoint.")
-
-        return (
-            Order.objects
-            .filter(
-                restaurant=restaurant,
-                status__in=["accepted", "done"],
-            )
-            .select_related("customer")
-            .prefetch_related("orderitem_set__item")
-            .order_by("-created_at")
+    def get(self, request):
+        response = MyOrdersView()._handle(
+            request,
+            forced_statuses=["accepted", "done"]
         )
+        response.headers["X-Deprecated"] = "Use POST /me/orders/"
+        return response
 
 
-class PendingRestaurantOrdersView(generics.ListAPIView):
-    serializer_class = OrderSerializer
+# DEPRECATED: Use POST /me/orders/ with statuses=["pending"]
+class PendingRestaurantOrdersView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
-        try:
-            restaurant = Restaurant.objects.get(user=self.request.user)
-        except Restaurant.DoesNotExist:
-            raise PermissionDenied("Only restaurants can access this endpoint.")
-
-        return (
-            Order.objects
-            .filter(
-                restaurant=restaurant,
-                status__in=["pending"],
-            )
-            .select_related("customer")
-            .prefetch_related("orderitem_set__item")
-            .order_by("-created_at")
+    def get(self, request):
+        response = MyOrdersView()._handle(
+            request,
+            forced_statuses=["pending"]
         )
+        response.headers["X-Deprecated"] = "Use POST /me/orders/"
+        return response
 
 
-class AllRestaurantOrdersView(generics.ListAPIView):
-    serializer_class = OrderSerializer
+# DEPRECATED: Use POST /me/orders/
+class AllRestaurantOrdersView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
-        try:
-            restaurant = Restaurant.objects.get(user=self.request.user)
-        except Restaurant.DoesNotExist:
-            raise PermissionDenied("Only restaurants can access this endpoint.")
+    def get(self, request):
+        response = MyOrdersView()._handle(request)
+        response.headers["X-Deprecated"] = "Use POST /me/orders/"
+        return response
 
-        return (
-            Order.objects
-            .filter(restaurant=restaurant)
-            .select_related("customer")
-            .prefetch_related("orderitem_set__item")
-            .order_by("-created_at")
-        )
-
-    def post(self, request, *args, **kwargs):
-        try:
-            restaurant = Restaurant.objects.get(user=request.user)
-        except Restaurant.DoesNotExist:
-            raise PermissionDenied("Only restaurants can access this endpoint.")
-
-        serializer = PaginationSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        index = serializer.validated_data["index"]
-        count = serializer.validated_data["count"]
-
-        queryset = (
-            Order.objects
-            .filter(restaurant=restaurant)
-            .select_related("customer")
-            .prefetch_related("orderitem_set__item")
-            .order_by("-created_at")
-        )
-
-        # Manual pagination
-        paginator = self.paginator
-        paginator.page_size = count
-        paginator.page = index + 1  # DRF pages are 1-based
-
-        page = paginator.paginate_queryset(queryset, request, view=self)
-        serialized = self.get_serializer(page, many=True)
-
-        return paginator.get_paginated_response(serialized.data)
+    def post(self, request):
+        response = MyOrdersView()._handle(request)
+        response.headers["X-Deprecated"] = "Use POST /me/orders/"
+        return response
 
 
 class MyOrdersView(APIView):
