@@ -85,15 +85,23 @@ class RestaurantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Restaurant
-        fields = ["id", "name", "address", "latitude", "longitude", "image", "profile_complete"]
+        fields = (
+            "id",
+            "name",
+            "address",
+            "latitude",
+            "longitude",
+            "image",
+            "is_open",
+            "profile_complete",
+        )
 
     def get_profile_complete(self, obj):
         return all([
-            bool(obj.name),
-            bool(obj.address),
-            obj.latitude is not None,
-            obj.longitude is not None,
-            # bool(obj.image)
+            obj.name,
+            obj.address,
+            obj.latitude,
+            obj.longitude,
         ])
 
 
