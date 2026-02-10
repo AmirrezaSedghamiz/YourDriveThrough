@@ -15,7 +15,6 @@ from .views import RestaurantMenuGroupedView
 urlpatterns = [
     path("login/", LoginView.as_view(), name="login"),
     path("signup/", SignupView.as_view(), name="signup"),
-    path("restaurant/complete_profile/", RestaurantMeUpdateView.as_view(), name="restaurant_complete_profile"),
     path("restaurant/get_closest/", GetClosestRestaurantsView.as_view(), name="get_closest_restaurants"),
     path("categories/", GetCategoriesView.as_view(), name="get_categories"),
     path("menu/save/", SaveMenuItemView.as_view(), name="save_menu_item"),
@@ -25,5 +24,9 @@ urlpatterns = [
     path("restaurant/orders/all/", AllRestaurantOrdersView.as_view()),
     path("restaurants/<int:restaurant_id>/menu/",RestaurantMenuGroupedView.as_view()),
     
+    # New endpoint for handling current user.
     path("me/restaurant/", RestaurantMeUpdateView.as_view(), name="restaurant_me_update"),
+
+    # Deprecated endpoint for handling current user (to be removed in the future).
+    path("restaurant/complete_profile/", RestaurantMeUpdateView.as_view(), name="restaurant_complete_profile"),
 ]
