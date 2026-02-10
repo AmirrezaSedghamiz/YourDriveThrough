@@ -1,5 +1,7 @@
+import 'package:application/GlobalWidgets/Services/Tapsell.dart';
 import 'package:application/MainProgram/Manager/PendingOrders/PendingOrders.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
 import 'package:application/GlobalWidgets/ReusableComponents/PaginatedListContract.dart';
@@ -147,11 +149,16 @@ class _OnGoingOrdersPagedListState extends State<OnGoingOrdersPagedList>
           ),
           newPageErrorIndicatorBuilder: (_) =>
               InlineError(onRetry: _pagingController.retryLastFailedRequest),
-          noItemsFoundIndicatorBuilder: (_) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text("No orders found.", style: t.bodyMedium),
-            ),
+          noItemsFoundIndicatorBuilder: (_) => Column(
+            children: [
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text("No orders found.", style: t.bodyMedium),
+                ),
+              ),
+              NativeAdWidget(zoneId: dotenv.env['TAPSELL_ZONE_ID'] ?? "", factoryId: "MY_FACTORY")
+            ],
           ),
           itemBuilder: (context, order, index) {
             return Padding(

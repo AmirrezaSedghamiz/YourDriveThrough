@@ -1,7 +1,9 @@
 import 'dart:math';
+import 'package:application/GlobalWidgets/Services/Tapsell.dart';
 import 'package:application/MainProgram/Manager/PendingOrders/PendingOrders.dart';
 import 'package:application/SourceDesign/Enums/OrderStatus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 
 import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
@@ -150,11 +152,17 @@ class _OrdersHistoryPagedListState extends State<OrdersHistoryPagedList>
           ),
           newPageErrorIndicatorBuilder: (_) =>
               InlineError(onRetry: _pagingController.retryLastFailedRequest),
-          noItemsFoundIndicatorBuilder: (_) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text("No history orders.", style: t.bodyMedium),
-            ),
+          noItemsFoundIndicatorBuilder: (_) => Column(
+            children: [
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text("No history orders.", style: t.bodyMedium),
+                ),
+              ),
+              NativeAdWidget(zoneId: dotenv.env['TAPSELL_ZONE_ID'] ?? "", factoryId: "MY_FACTORY"),
+              SizedBox(height: 100,)
+            ],
           ),
           itemBuilder: (context, order, index) {
             return Padding(

@@ -5,6 +5,7 @@ import 'package:application/Handlers/Repository/OrderRepo.dart';
 import 'package:application/MainProgram/Manager/DashboardManager/DashboardManagerState.dart';
 import 'package:application/MainProgram/Manager/DashboardManager/DashboardManagerViewModel.dart';
 import 'package:application/MainProgram/Manager/HistoryOrders/HistoryOrders.dart';
+import 'package:application/MainProgram/Manager/Menu/Menu.dart';
 import 'package:application/MainProgram/Manager/OngoingOrders/OnGoingOrders.dart';
 import 'package:application/MainProgram/Manager/PendingOrders/PendingOrders.dart';
 import 'package:application/MockTester/MockOrder.dart';
@@ -159,7 +160,7 @@ class _DashboardManagerState extends ConsumerState<DashboardManager>
               fetchPage: OrderRepo().getOrderList,
             ),
              
-             SizedBox(),
+            RestaurantSettings(),
           ],
         ),
         bottomNavigationBar: Container(

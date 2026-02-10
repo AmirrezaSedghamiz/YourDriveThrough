@@ -19,6 +19,15 @@ Future<void> main() async {
   await SharedPreferencesManager.instance.init();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await dotenv.load(fileName: ".env");
+  debugPrint('📢 Initializing ads...');
+  try {
+    await TapsellPlus.instance.initialize(dotenv.env['TAPSELL_KEY'] ?? "");
+    await TapsellPlus.instance.setGDPRConsent(true);
+    TapsellPlus.instance.setDebugMode(LogLevel.Debug);
+    debugPrint('Tapsell initialized');
+  } catch (e) {
+    debugPrint('Tapsell failed: $e');
+  }
   SystemChrome.setSystemUIOverlayStyle(
     SystemUiOverlayStyle(
       systemNavigationBarColor: AppColors.white,
@@ -32,21 +41,25 @@ Future<void> main() async {
   runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       navigatorKey: NavigationService.navigatorKey,
       theme: AppTheme.lightTheme,
       home: SplashScreen(),
-      // home: OnBoardingScreen(),
-      // home: MapBuilder(),
-      // home: DashboardManager(initialPage: 0)
-      // home: LoginPage(),
-      // home: DashboardCustomer(initialPage: 0),
     );
   }
 }
@@ -63,16 +76,13 @@ class InitService {
     debugPrint('InitService finished');
   }
 
-
   static Future<void> _initAds() async {
     if (kIsWeb) return;
 
     debugPrint('📢 Initializing ads...');
 
     try {
-      await TapsellPlus.instance.initialize(
-        dotenv.env['TAPSELL_KEY'] ?? "",
-      );
+      await TapsellPlus.instance.initialize(dotenv.env['TAPSELL_KEY'] ?? "");
       await TapsellPlus.instance.setGDPRConsent(true);
       TapsellPlus.instance.setDebugMode(LogLevel.Debug);
       debugPrint('Tapsell initialized');

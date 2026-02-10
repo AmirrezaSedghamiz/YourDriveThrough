@@ -1,11 +1,11 @@
 import 'dart:convert';
 
-// ignore_for_file: public_member_api_docs, sort_constructors_first
 class ItemOrder {
   int id;
   String itemName;
   int quantity;
   String special;
+  
   ItemOrder({
     required this.id,
     required this.itemName,
