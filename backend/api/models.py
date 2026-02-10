@@ -36,8 +36,8 @@ class Customer(models.Model):
 class Restaurant(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
 
-    name = models.CharField(max_length=255)
-    address = models.TextField()
+    name = models.CharField(max_length=255,null=True, blank=True)
+    address = models.TextField(null=True, blank=True)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     image = models.ImageField(null=True, blank=True)
