@@ -325,7 +325,7 @@ class AllRestaurantOrdersView(APIView):
         response.headers["X-Deprecated"] = "Use POST /me/orders/"
         return response
 
-DEFAULT_STATUS_ORDER = [
+DEFAULT_STATUS_ORDER = [#Unused.
     "pending",
     "accepted",
     "done",
@@ -365,23 +365,23 @@ class MyOrdersView(APIView):
         # filter statuses if provided
         if statuses:
             queryset = queryset.filter(status__in=statuses)
-            status_order = statuses
+
+            # custom ordering ONLY when statuses are provided
+            status_ordering = Case(
+                *[
+                    When(status=status, then=pos)
+                    for pos, status in enumerate(statuses)
+                ],
+                output_field=IntegerField(),
+            )
+
+            queryset = queryset.order_by(
+                status_ordering,
+                "-id",
+            )
         else:
-            status_order = DEFAULT_STATUS_ORDER
-
-        # build custom status ordering
-        status_ordering = Case(
-            *[
-                When(status=status, then=pos)
-                for pos, status in enumerate(status_order)
-            ],
-            output_field=IntegerField(),
-        )
-
-        queryset = queryset.order_by(
-            status_ordering,
-            "-id",
-        )
+            # default ordering: newest first, no status grouping
+            queryset = queryset.order_by("-id")
 
         paginator = Paginator(queryset, page_size)
         page_obj = paginator.get_page(page)
@@ -401,6 +401,7 @@ class MyOrdersView(APIView):
                 many=True
             ).data
         })
+
 
 
 
