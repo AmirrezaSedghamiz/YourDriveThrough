@@ -58,18 +58,24 @@ class Order(models.Model):
 
 
 class Category(models.Model):
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name="categories")
     name = models.CharField(max_length=255)
+
+    def __str__(self):
+        return f"{self.name} ({self.restaurant.name})"
 
 
 class MenuItem(models.Model):
-    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="items")
     name = models.CharField(max_length=255)
     description = models.CharField(max_length=1024)
     price = models.IntegerField()
     expected_duration = models.IntegerField()
-    categories = models.ManyToManyField(Category, related_name="items")
     image = models.ImageField()
     is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.category.name})"
 
 
 class Report(models.Model):

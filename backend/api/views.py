@@ -24,6 +24,8 @@ from rest_framework.exceptions import NotFound
 from drf_spectacular.utils import extend_schema
 from django.shortcuts import get_object_or_404
 from django.db.models import Case, When, IntegerField
+import requests
+from django.conf import settings
 
 
 class MeAuthView(APIView):
@@ -137,7 +139,6 @@ class RestaurantMeUpdateView(APIView):
 
         return Response(response_data)
 
-
 @extend_schema(
     request=ClosestRestaurantsSerializer,
     responses=RestaurantSerializer(many=True),
@@ -154,32 +155,52 @@ class GetClosestRestaurantsView(APIView):
         page = serializer.validated_data["page"]
         page_size = serializer.validated_data["page_size"]
 
-        restaurants = Restaurant.objects.exclude(
-            latitude=None
-        ).exclude(
-            longitude=None
-        )
+        restaurants = Restaurant.objects.exclude(latitude=None).exclude(longitude=None)
 
-        # Compute distances
-        distances = []
-        for r in restaurants:
-            dist = haversine(
-                lat,
-                lon,
-                float(r.latitude),
-                float(r.longitude),
-            )
-            distances.append((r, dist))
+        if not restaurants.exists():
+            return Response({"results": [], "pagination": {}}, status=status.HTTP_200_OK)
 
-        # Sort by distance
-        distances.sort(key=lambda x: x[1])
+        origins = "|".join([
+            f"{r.latitude},{r.longitude}" for r in restaurants
+        ])
+        destinations = "|".join([
+            f"{r.latitude},{r.longitude}" for r in restaurants
+        ])
 
-        # Extract ordered restaurants
-        ordered_restaurants = [r[0] for r in distances]
+        url = "https://api.neshan.org/v1/distance-matrix?" + "type=car&origin=" + origins + "destinations=" + destinations
 
-        # Proper pagination (same as MyOrdersView)
+        headers = {"Api-Key": settings.NESHAN_API_KEY}
+
+        try:
+            response = requests.get(url, headers=headers, timeout=5)
+            response.raise_for_status()
+            data = response.json()
+        except requests.RequestException as e:
+            return Response({"detail": f"Error calling distance API: {str(e)}"},
+                            status=status.HTTP_502_BAD_GATEWAY)
+
+        durations = []
+        if "rows" in data and len(data["rows"]) > 0:
+            elements = data["rows"][0]["elements"]
+            for r, elem in zip(restaurants, elements):
+                duration = elem.get("duration", {}).get("value", float("inf"))  # seconds
+                r.duration_seconds = duration
+                durations.append((r, duration))
+        else:
+            for r in restaurants:
+                r.duration_seconds = None
+                durations.append((r, float("inf")))
+
+        durations.sort(key=lambda x: x[1])
+        ordered_restaurants = [r[0] for r in durations]
+
         paginator = Paginator(ordered_restaurants, page_size)
         page_obj = paginator.get_page(page)
+
+        # Include duration in serialized results
+        serialized_data = RestaurantSerializer(page_obj.object_list, many=True).data
+        for r_obj, r_data in zip(page_obj.object_list, serialized_data):
+            r_data["duration_seconds"] = getattr(r_obj, "duration_seconds", None)
 
         return Response({
             "pagination": {
@@ -190,11 +211,9 @@ class GetClosestRestaurantsView(APIView):
                 "has_next": page_obj.has_next(),
                 "has_previous": page_obj.has_previous(),
             },
-            "results": RestaurantSerializer(
-                page_obj.object_list,
-                many=True
-            ).data
+            "results": serialized_data
         }, status=status.HTTP_200_OK)
+
 
 @extend_schema(
     responses=CategorySerializer(many=True),
@@ -212,8 +231,9 @@ class SaveMenuItemView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
+        # Ensure the user is a restaurant
         try:
-            restaurant = Restaurant.objects.get(user=request.user)
+            restaurant = request.user.restaurant
         except Restaurant.DoesNotExist:
             return Response(
                 {"error": "Access violation: not a restaurant"},
@@ -221,15 +241,25 @@ class SaveMenuItemView(APIView):
             )
 
         data = request.data.copy()
-        data["restaurant"] = restaurant.id
+
+        # Ensure category belongs to this restaurant
+        category_id = data.get("category")
+        try:
+            category = Category.objects.get(id=category_id, restaurant=restaurant)
+        except (Category.DoesNotExist, TypeError):
+            return Response(
+                {"error": "Invalid category or category does not belong to you"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         serializer = MenuItemSerializer(data=data)
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(category=category)
             return Response(
                 {"message": "Menu item created successfully", "item": serializer.data},
                 status=status.HTTP_201_CREATED
             )
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -247,24 +277,17 @@ class RestaurantMenuGroupedView(APIView):
         except Restaurant.DoesNotExist:
             raise NotFound("Restaurant not found.")
 
-        items = (
-            MenuItem.objects
-            .filter(
-                restaurant=restaurant,
-                is_active=True,
-            )
-            .prefetch_related("categories")
-        )
+        # Fetch items with their category
+        items = MenuItem.objects.filter(
+            category__restaurant=restaurant,
+            is_active=True
+        ).select_related("category")
 
+        # Group by category name
         grouped = defaultdict(list)
-
         for item in items:
-            categories = item.categories.all()
-            if categories:
-                for category in categories:
-                    grouped[category.name].append(item)
-            else:
-                grouped["Uncategorized"].append(item)
+            category_name = item.category.name if item.category else "Uncategorized"
+            grouped[category_name].append(item)
 
         response_data = [
             {
@@ -275,7 +298,6 @@ class RestaurantMenuGroupedView(APIView):
         ]
 
         return Response(response_data, status=status.HTTP_200_OK)
-
 
 
 class OrderCreateView(generics.CreateAPIView):
