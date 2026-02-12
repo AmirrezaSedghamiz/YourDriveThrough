@@ -356,3 +356,6 @@ class RatingSerializer(serializers.ModelSerializer):
             return obj.review.describtion
         return None
 
+
+class RestaurantMenuRequestSerializer(serializers.Serializer):
+    restaurant_id = serializers.IntegerField()
