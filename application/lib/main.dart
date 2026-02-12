@@ -4,6 +4,7 @@ import 'package:application/GlobalWidgets/NavigationServices/NavigationService.d
 import 'package:application/GlobalWidgets/Services/Map.dart';
 import 'package:application/Handlers/Repository/ManagerRepo.dart';
 import 'package:application/Handlers/SharePreferencesManager.dart';
+import 'package:application/Handlers/TokenHandler.dart';
 import 'package:application/MainProgram/Customer/DashboardCustomer/DashboardCustomer.dart';
 import 'package:application/MainProgram/Login/Login.dart';
 import 'package:application/MainProgram/Manager/DashboardManager/DashboardManager.dart';
@@ -20,7 +21,7 @@ Future<void> main() async {
   await SharedPreferencesManager.instance.init();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await dotenv.load(fileName: ".env");
-  debugPrint('📢 Initializing ads...');
+  ManagerRepo().getMenu(restaurantId: 20);
   try {
     await TapsellPlus.instance.initialize(dotenv.env['TAPSELL_KEY'] ?? "");
     await TapsellPlus.instance.setGDPRConsent(true);
@@ -29,12 +30,10 @@ Future<void> main() async {
   } catch (e) {
     debugPrint('Tapsell failed: $e');
   }
-  ManagerRepo().getRestaurantProfile();
   SystemChrome.setSystemUIOverlayStyle(
     SystemUiOverlayStyle(
       systemNavigationBarColor: AppColors.white,
-      systemNavigationBarContrastEnforced:
-          false, // 👈 important for Android 14/15
+      systemNavigationBarContrastEnforced: false, // 👈 important for Android 14/15
       systemNavigationBarIconBrightness: Brightness.dark,
       statusBarIconBrightness: Brightness.dark,
     ),

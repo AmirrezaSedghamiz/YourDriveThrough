@@ -1,6 +1,7 @@
 import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
 import 'package:application/GlobalWidgets/ReusableComponents/AppBar.dart';
 import 'package:application/GlobalWidgets/ReusableComponents/FlexSwitch.dart';
+import 'package:application/Handlers/Repository/ManagerRepo.dart';
 import 'package:application/Handlers/Repository/OrderRepo.dart';
 import 'package:application/MainProgram/Manager/DashboardManager/DashboardManagerState.dart';
 import 'package:application/MainProgram/Manager/DashboardManager/DashboardManagerViewModel.dart';
@@ -9,6 +10,7 @@ import 'package:application/MainProgram/Manager/Menu/Menu.dart';
 import 'package:application/MainProgram/Manager/OngoingOrders/OnGoingOrders.dart';
 import 'package:application/MainProgram/Manager/PendingOrders/PendingOrders.dart';
 import 'package:application/MockTester/MockOrder.dart';
+import 'package:application/SourceDesign/Models/RestauarantInfo.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,14 +30,21 @@ class _DashboardManagerState extends ConsumerState<DashboardManager>
   DateTime? _lastPressedTime; // Just track the last press time
 
   //TESTER
-  late final MockOrdersApi _api;
   bool flexTest = false;
+
+  RestaurantInfo? myRestaurant;
+
+  Future<void> getRestaurant() async {
+    myRestaurant = await ManagerRepo().getRestaurantProfile();
+    flexTest = myRestaurant?.isOpen ?? false;
+    setState(() {});
+  }
 
   @override
   void initState() {
     super.initState();
+    getRestaurant();
     _pageController = PageController(initialPage: widget.initialPage);
-    _api = MockOrdersApi(totalPages: 4, pageSize: 10);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref
           .read(dashboardManagerViewModelProvider.notifier)
@@ -76,66 +85,83 @@ class _DashboardManagerState extends ConsumerState<DashboardManager>
       onWillPop: _onWillPop,
       child: Scaffold(
         backgroundColor: AppColors.white,
-        appBar: AppAppBar(
-          leading: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.notifications_none, color: Colors.white),
-          ),
-          title: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 250),
-            switchInCurve: Curves.easeOut,
-            switchOutCurve: Curves.easeIn,
-            transitionBuilder: (child, animation) {
-              return SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0.0, 0.2),
-                  end: Offset.zero,
-                ).animate(animation),
-                child: FadeTransition(opacity: animation, child: child),
-              );
-            },
-            child: Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: Text(
-                titleText,
-                key: ValueKey(titleText), // 👈 IMPORTANT
-                style: textTheme.bodyLarge,
+        appBar: myRestaurant == null
+            ? AppAppBar(
+                leading: const SizedBox(),
+                title: const AppBarShimmerContent(),
+                subtitle: const SizedBox(),
+                trailing: const SizedBox(),
+                elevation: 2,
+              )
+            : AppAppBar(
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.notifications_none,
+                    color: Colors.white,
+                  ),
+                ),
+                title: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  switchInCurve: Curves.easeOut,
+                  switchOutCurve: Curves.easeIn,
+                  transitionBuilder: (child, animation) {
+                    return SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0.0, 0.2),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: FadeTransition(opacity: animation, child: child),
+                    );
+                  },
+                  child: Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Text(
+                      titleText,
+                      key: ValueKey(titleText), // 👈 IMPORTANT
+                      style: textTheme.bodyLarge,
+                    ),
+                  ),
+                ),
+                subtitle: Text(
+                  myRestaurant?.name ?? "......",
+                  style: textTheme.bodyMedium,
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      flexTest ? "Open" : "Closed",
+                      style: textTheme.bodyMedium,
+                    ),
+                    SizedBox(width: 16),
+                    FlexSwitch(
+                      value: flexTest,
+                      onChanged: (value) => setState(() => flexTest = value),
+                      thumbColor: AppColors.lightGray,
+                      activeThumbColor: AppColors.lightGray,
+                      inactiveThumbColor: AppColors.lightGray,
+                      trackColor: AppColors.coal,
+                      activeTrackColor: AppColors.primary,
+                      inactiveTrackColor: AppColors.coal,
+                      thumbSize: 23.0,
+                      // Track properties
+                      trackHeight: 20.0,
+                      trackWidth: 40.0,
+                      // Animation
+                      animationDuration: const Duration(milliseconds: 200),
+                      splashRadius: 50.0,
+                      borderRadius: 20.0,
+                    ),
+                  ],
+                ),
+                elevation: 2,
               ),
-            ),
-          ),
-          subtitle: Text("FastBites Kitchen", style: textTheme.bodyMedium),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(flexTest ? "Open" : "Closed", style: textTheme.bodyMedium),
-              SizedBox(width: 16),
-              FlexSwitch(
-                value: flexTest,
-                onChanged: (value) => setState(() => flexTest = value),
-                thumbColor: AppColors.lightGray,
-                activeThumbColor: AppColors.lightGray,
-                inactiveThumbColor: AppColors.lightGray,
-                trackColor: AppColors.coal,
-                activeTrackColor: AppColors.primary,
-                inactiveTrackColor: AppColors.coal,
-                thumbSize: 23.0,
-                // Track properties
-                trackHeight: 20.0,
-                trackWidth: 40.0,
-                // Animation
-                animationDuration: const Duration(milliseconds: 200),
-                splashRadius: 50.0,
-                borderRadius: 20.0,
-              ),
-            ],
-          ),
-          elevation: 2,
-        ),
         body: PageView(
           controller: _pageController,
           physics: const BouncingScrollPhysics(),
@@ -145,21 +171,19 @@ class _DashboardManagerState extends ConsumerState<DashboardManager>
           children: [
             PendingOrdersPagedList(
               fetchPage: OrderRepo().getOrderList,
-              onAccept: (order) => _api.accept(order.id),
-              onDecline: (order) => _api.decline(order.id),
+              // onAccept: (order) => _api.accept(order.id),
+              // onDecline: (order) => _api.decline(order.id),
               pageSize: 10,
               firstPageKey: 1,
             ),
             OnGoingOrdersPagedList(
               fetchPage: OrderRepo().getOrderList,
-              onMarkReady: (order) => _api.accept(order.id),
+              // onMarkReady: (order) => _api.accept(order.id),
               pageSize: 10,
               firstPageKey: 1,
             ),
-            OrdersHistoryPagedList(
-              fetchPage: OrderRepo().getOrderList,
-            ),
-             
+            OrdersHistoryPagedList(fetchPage: OrderRepo().getOrderList),
+
             RestaurantSettings(),
           ],
         ),
@@ -218,5 +242,121 @@ class _DashboardManagerState extends ConsumerState<DashboardManager>
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+}
+
+class ShimmerBlock extends StatefulWidget {
+  final double width;
+  final double height;
+  final double radius;
+
+  const ShimmerBlock({
+    super.key,
+    required this.width,
+    required this.height,
+    this.radius = 8,
+  });
+
+  @override
+  State<ShimmerBlock> createState() => _ShimmerBlockState();
+}
+
+class _ShimmerBlockState extends State<ShimmerBlock>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const baseColor = Color(0xFFE7E7E7);
+
+    return SizedBox(
+      width: widget.width,
+      height: widget.height,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(widget.radius),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Container(color: baseColor),
+            AnimatedBuilder(
+              animation: _controller,
+              builder: (_, __) {
+                final dx = (_controller.value * 2) - 1;
+                return Transform.translate(
+                  offset: Offset(dx * 200, 0),
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Color(0x00FFFFFF),
+                          Color(0x55FFFFFF),
+                          Color(0x00FFFFFF),
+                        ],
+                        stops: [0.25, 0.5, 0.75],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+}
+
+class AppBarShimmerContent extends StatelessWidget {
+  const AppBarShimmerContent({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        // Leading placeholder
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+
+        const SizedBox(width: 12),
+
+        // Title + subtitle
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              ShimmerBlock(width: 140, height: 18),
+              SizedBox(height: 6),
+              ShimmerBlock(width: 100, height: 14),
+            ],
+          ),
+        ),
+
+        const SizedBox(width: 16),
+
+        // Switch placeholder
+        const ShimmerBlock(width: 70, height: 28, radius: 20),
+      ],
+    );
   }
 }

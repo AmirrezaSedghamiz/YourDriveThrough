@@ -93,7 +93,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
                       ? () {
                           TokenStore.setInOnboarding(true);
                           var route = AppRoutes.fade(LoginPage());
-                          NavigationService.popAllAndPush(route);
+                          NavigationService.replace(route);
                         }
                       : () {
                           _pageController.nextPage(
