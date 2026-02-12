@@ -110,14 +110,13 @@ class LoginRepo {
 
   //////////////////////////////////////////////////////////
   Future<Response> _verifyTokenRequest(Map<String, dynamic> kwargs) async {
-    print({"token": await TokenStore.getAccessToken()});
+    print({"token": (await TokenStore.getAccessToken())?.replaceAll("Bearer ", "")});
     return await HttpClient.instanceWithoutVersion.post(
       'token/verify/',
       options: HttpClient.globalHeader,
       data: {
         "token":
-            (await TokenStore.getAccessToken())?.replaceAll("Bearer ", "") ??
-            "",
+            (await TokenStore.getAccessToken())?.replaceAll("Bearer ", ""),
       },
     );
   }
@@ -129,7 +128,7 @@ class LoginRepo {
       return true;
     } else {
       if (response.statusCode == 400) {
-        return ConnectionStates.BadRequest;
+        return false;
       } else if (response.statusCode == 401) {
         return false;
       } else if (response.statusCode == 500) {

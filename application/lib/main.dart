@@ -2,6 +2,7 @@ import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
 import 'package:application/GlobalWidgets/AppTheme/Theme.dart';
 import 'package:application/GlobalWidgets/NavigationServices/NavigationService.dart';
 import 'package:application/GlobalWidgets/Services/Map.dart';
+import 'package:application/Handlers/Repository/ManagerRepo.dart';
 import 'package:application/Handlers/SharePreferencesManager.dart';
 import 'package:application/MainProgram/Customer/DashboardCustomer/DashboardCustomer.dart';
 import 'package:application/MainProgram/Login/Login.dart';
@@ -28,6 +29,7 @@ Future<void> main() async {
   } catch (e) {
     debugPrint('Tapsell failed: $e');
   }
+  ManagerRepo().getRestaurantProfile();
   SystemChrome.setSystemUIOverlayStyle(
     SystemUiOverlayStyle(
       systemNavigationBarColor: AppColors.white,

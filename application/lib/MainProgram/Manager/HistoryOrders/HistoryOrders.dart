@@ -160,8 +160,11 @@ class _OrdersHistoryPagedListState extends State<OrdersHistoryPagedList>
                   child: Text("No history orders.", style: t.bodyMedium),
                 ),
               ),
-              NativeAdWidget(zoneId: dotenv.env['TAPSELL_ZONE_ID'] ?? "", factoryId: "MY_FACTORY"),
-              SizedBox(height: 100,)
+              NativeAdWidget(
+                zoneId: dotenv.env['TAPSELL_ZONE_ID'] ?? "",
+                factoryId: "MY_FACTORY",
+              ),
+              SizedBox(height: 100),
             ],
           ),
           itemBuilder: (context, order, index) {
@@ -340,9 +343,7 @@ class _HistoryOrderCardState extends State<_HistoryOrderCard> {
                         ),
                         const SizedBox(height: 8),
                         ...o.items.map((it) {
-                          final price = _mockPriceFor(
-                            it,
-                          ); // placeholder pricing
+                          final price = it.price ?? 0; // placeholder pricing
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 6),
                             child: Row(
@@ -365,35 +366,36 @@ class _HistoryOrderCardState extends State<_HistoryOrderCard> {
                         const SizedBox(height: 12),
 
                         // Customer Feedback section (placeholder like screenshot)
-                        Text(
-                          "Customer Feedback:",
-                          style: t.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: List.generate(
-                            5,
-                            (i) => Icon(
-                              i < _mockStars(o)
-                                  ? Icons.star_rounded
-                                  : Icons.star_border_rounded,
-                              size: 18,
-                              color: Colors.black.withOpacity(0.65),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          _mockFeedbackText(o),
-                          style: t.bodySmall?.copyWith(
-                            color: Colors.black.withOpacity(0.65),
-                            height: 1.25,
-                          ),
-                        ),
+                        // Text(
+                        //   "Customer Feedback:",
+                        //   style: t.bodyMedium?.copyWith(
+                        //     fontWeight: FontWeight.w700,
+                        //   ),
+                        // ),
+                        // const SizedBox(height: 8),
+                        // Row(
+                        //   children: List.generate(
+                        //     5,
+                        //     (i) => Icon(
+                        //       i < _mockStars(o)
+                        //           ? Icons.star_rounded
+                        //           : Icons.star_border_rounded,
+                        //       size: 18,
+                        //       color: Colors.black.withOpacity(0.65),
+                        //     ),
+                        //   ),
+                        // ),
+                        // const SizedBox(height: 6),
+                        // Text(
+                        //   _mockFeedbackText(o),
+                        //   style: t.bodySmall?.copyWith(
+                        //     color: Colors.black.withOpacity(0.65),
+                        //     height: 1.25,
+                        //   ),
+                        // ),
 
-                        const SizedBox(height: 14),
+                        // const SizedBox(height: 14),
+                      
 
                         SizedBox(
                           width: double.infinity,
@@ -462,7 +464,11 @@ Future<void> _showReceiptSheet(BuildContext context, Order order) {
       final media = MediaQuery.of(ctx);
       final maxH = media.size.height * 0.82;
 
-      final subtotal = _mockSubtotal(order.items);
+      double subtotal = 0;
+      for (final it in order.items) {
+        subtotal += (it.price ?? 0) * it.quantity;
+      }
+
       final tax = subtotal * 0.12;
       final total = subtotal + tax;
 
@@ -547,7 +553,7 @@ Future<void> _showReceiptSheet(BuildContext context, Order order) {
                   const SizedBox(height: 10),
 
                   ...order.items.map((it) {
-                    final price = _mockPriceFor(it);
+                    final price = it.price ?? 0;
                     final line = price * it.quantity;
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 10),
@@ -656,16 +662,40 @@ class _ReceiptRow extends StatelessWidget {
 }
 
 class _HistoryStatus {
-  const _HistoryStatus(this.label, this.color);
   final String label;
   final Color color;
+  final Color? bg;
+
+  _HistoryStatus(this.label, this.color, {this.bg});
 }
 
 _HistoryStatus _historyStatusFromOrder(Order o) {
-  if (o.status == OrderStatus.canceled || o.status == OrderStatus.failed) {
-    return _HistoryStatus("Cancelled", AppColors.primary);
+  switch (o.status) {
+    case OrderStatus.canceled:
+    case OrderStatus.failed:
+      return _HistoryStatus(
+        "Cancelled",
+        AppColors.primary,
+        bg: AppColors.primary.withOpacity(0.12),
+      );
+
+    case OrderStatus.recieved:
+      return _HistoryStatus(
+        "Completed",
+        const Color(0xFF3B3B3B),
+        bg: const Color(0xFF3B3B3B).withOpacity(0.10),
+      );
+
+    // These are NOT history-final, but in case they show up:
+    case OrderStatus.pending:
+    case OrderStatus.accepted:
+    case OrderStatus.done:
+      return _HistoryStatus(
+        "In progress",
+        const Color(0xFF3B3B3B),
+        bg: const Color(0xFF3B3B3B).withOpacity(0.08),
+      );
   }
-  return _HistoryStatus("Completed", const Color(0xFF3B3B3B));
 }
 
 /// ---------------- Code + formatting helpers ----------------
@@ -673,7 +703,8 @@ _HistoryStatus _historyStatusFromOrder(Order o) {
 String _displayHistoryCode(Order o) {
   // "A1001" style
   // stable-ish short code based on ids, without crypto.
-  final n = (o.restaurantId * 100000) + (o.customerId * 1000) + o.id;
+  final n =
+      ((o.restaurantId ?? 0) * 100000) + ((o.customerId ?? 0) * 1000) + o.id;
   final s = (n % 9000) + 1000; // 1000..9999
   return "A$s";
 }
@@ -703,19 +734,19 @@ String _formatDateLine(BuildContext context, DateTime dt) {
 
 /// ---------------- Mock pricing + feedback (UI-only placeholders) ----------------
 
-double _mockPriceFor(ItemOrder it) {
-  // simple deterministic pseudo-price based on name
-  final base = 2.5 + (it.itemName.length % 8) * 1.25;
-  return (base * 100).roundToDouble() / 100;
-}
+// double _mockPriceFor(ItemOrder it) {
+//   // simple deterministic pseudo-price based on name
+//   final base = 2.5 + (it.itemName.length % 8) * 1.25;
+//   return (base * 100).roundToDouble() / 100;
+// }
 
-double _mockSubtotal(List<ItemOrder> items) {
-  double s = 0;
-  for (final it in items) {
-    s += _mockPriceFor(it) * it.quantity;
-  }
-  return s;
-}
+// double _mockSubtotal(List<ItemOrder> items) {
+//   double s = 0;
+//   for (final it in items) {
+//     s += _mockPriceFor(it) * it.quantity;
+//   }
+//   return s;
+// }
 
 int _mockStars(Order o) {
   return 3 + (o.id % 3); // 3..5

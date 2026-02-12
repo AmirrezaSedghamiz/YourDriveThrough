@@ -10,6 +10,7 @@ class RestaurantInfo {
   String? image;
   bool profileComplete;
   num rating;
+  bool isOpen;
 
   RestaurantInfo({
     required this.id,
@@ -20,6 +21,7 @@ class RestaurantInfo {
     this.image,
     required this.profileComplete,
     required this.rating,
+    required this.isOpen,
   });
 
   RestaurantInfo copyWith({
@@ -28,19 +30,21 @@ class RestaurantInfo {
     String? address,
     num? latitiude,
     num? rating,
-    num? logitude,
+    num? longitude,
     String? image,
     bool? profileComplete,
+    bool? isOpen,
   }) {
     return RestaurantInfo(
       id: id ?? this.id,
       name: name ?? this.name,
       address: address ?? this.address,
       latitiude: latitiude ?? this.latitiude,
-      longitude: logitude ?? this.longitude,
+      longitude: longitude ?? this.longitude,
       image: image ?? this.image,
       profileComplete: profileComplete ?? this.profileComplete,
       rating: rating ?? this.rating,
+      isOpen: isOpen ?? this.isOpen
     );
   }
 
@@ -50,10 +54,11 @@ class RestaurantInfo {
       name: map['name'],
       address: map['address'],
       latitiude: map['latitiude'],
-      longitude: map['logitude'],
+      longitude: map['longitude'],
       image: map['image'] != null ? map['image'] as String : null,
       profileComplete: map['profile_complete'],
       rating: map['rating'],
+      isOpen: map['is_open']
     );
   }
 

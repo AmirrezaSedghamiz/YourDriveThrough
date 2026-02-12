@@ -300,15 +300,18 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: widget.margin,
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 260),
-        child: _isLoading
-            ? _buildLoading()
-            : _error != null
-                ? _buildError()
-                : (_adContent ?? const SizedBox.shrink()),
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Container(
+        margin: widget.margin,
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 260),
+          child: _isLoading
+              ? _buildLoading()
+              : _error != null
+                  ? _buildError()
+                  : (_adContent ?? const SizedBox.shrink()),
+        ),
       ),
     );
   }

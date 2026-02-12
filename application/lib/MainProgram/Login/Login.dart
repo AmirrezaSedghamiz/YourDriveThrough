@@ -63,16 +63,12 @@ class _LoginPageState extends ConsumerState<LoginPage>
       final wasLoggedIn = prev?.logInSuccessful ?? false;
       final isLoggedIn = next.logInSuccessful;
       final role = next.selectedType;
-      if (!wasLoggedIn && isLoggedIn) {
+      if (isLoggedIn) {
         var route = (role == AccountType.customer
             ? AppRoutes.fade(DashboardCustomer(initialPage: 0))
             : next.isProfileComplete
-            ? AppRoutes.fade(DashboardManager(initialPage: 0,))
-            : AppRoutes.fade(
-                MapBuilder(
-                  username: next.username ?? ""
-                ),
-              ));
+            ? AppRoutes.fade(DashboardManager(initialPage: 0))
+            : AppRoutes.fade(MapBuilder(username: next.username ?? "")));
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
           NavigationService.popAllAndPush(route);

@@ -35,7 +35,7 @@ class Item {
       name: map['name'] as String,
       image: map['image'] != null ? map['image'] as String : null,
       expectedDuration: map['expectedDuration'] as num,
-      price: map['price'] as num,
+      price: num.parse(map['price']),
       description: map['description'] != null ? map['description'] as String : null,
     );
   }
