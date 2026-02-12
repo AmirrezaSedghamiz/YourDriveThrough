@@ -9,7 +9,8 @@ from .serializers import RestaurantSerializer
 from .serializers import ClosestRestaurantsSerializer
 from .serializers import CategorySerializer
 from .serializers import MenuItemSerializer
-from .serializers import CategoryMenuSerializer
+from .serializers import RestaurantMenuRequestSerializer
+from .serializers import RestaurantSearchSerializer
 from django.db import transaction
 from django.utils import timezone
 from django.core.paginator import Paginator
@@ -235,14 +236,21 @@ class SaveMenuItemView(APIView):
 class RestaurantMenuGroupedView(APIView):
     permission_classes = []
 
-    def get(self, request, restaurant_id):
-        if not Restaurant.objects.filter(id=restaurant_id).exists():
+    def post(self, request):
+        serializer = RestaurantMenuRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        restaurant_id = serializer.validated_data["restaurant_id"]
+
+        try:
+            restaurant = Restaurant.objects.get(id=restaurant_id)
+        except Restaurant.DoesNotExist:
             raise NotFound("Restaurant not found.")
 
         items = (
             MenuItem.objects
             .filter(
-                restaurant_id=restaurant_id,
+                restaurant=restaurant,
                 is_active=True,
             )
             .prefetch_related("categories")
@@ -251,23 +259,23 @@ class RestaurantMenuGroupedView(APIView):
         grouped = defaultdict(list)
 
         for item in items:
-            if item.categories.exists():
-                for category in item.categories.all():
+            categories = item.categories.all()
+            if categories:
+                for category in categories:
                     grouped[category.name].append(item)
             else:
                 grouped["Uncategorized"].append(item)
 
         response_data = [
             {
-                "category": category,
+                "category": category_name,
                 "items": MenuItemSerializer(items, many=True).data,
             }
-            for category, items in grouped.items()
+            for category_name, items in grouped.items()
         ]
 
-        return Response(
-            CategoryMenuSerializer(response_data, many=True).data
-        )
+        return Response(response_data, status=status.HTTP_200_OK)
+
 
 
 class OrderCreateView(generics.CreateAPIView):
@@ -505,3 +513,43 @@ class OrderStatusUpdateView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class RestaurantSearchView(APIView):
+    permission_classes = []
+
+    def post(self, request):
+        serializer = RestaurantSearchSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        query = serializer.validated_data.get("query", "")
+        page = serializer.validated_data["page"]
+        page_size = serializer.validated_data["page_size"]
+
+        queryset = Restaurant.objects.filter(is_open=True)
+
+        if query:
+            queryset = queryset.filter(
+                name__icontains=query
+            )
+
+        queryset = queryset.order_by("name")
+
+        paginator = Paginator(queryset, page_size)
+        page_obj = paginator.get_page(page)
+
+        return Response({
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total_pages": paginator.num_pages,
+                "total_items": paginator.count,
+                "has_next": page_obj.has_next(),
+                "has_previous": page_obj.has_previous(),
+            },
+            "results": RestaurantSerializer(
+                page_obj.object_list,
+                many=True
+            ).data
+        }, status=status.HTTP_200_OK)
+
