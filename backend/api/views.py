@@ -24,6 +24,8 @@ from rest_framework.exceptions import NotFound
 from drf_spectacular.utils import extend_schema
 from django.shortcuts import get_object_or_404
 from django.db.models import Case, When, IntegerField
+import requests
+from django.conf import settings
 
 
 class MeAuthView(APIView):
@@ -137,7 +139,6 @@ class RestaurantMeUpdateView(APIView):
 
         return Response(response_data)
 
-
 @extend_schema(
     request=ClosestRestaurantsSerializer,
     responses=RestaurantSerializer(many=True),
@@ -154,32 +155,47 @@ class GetClosestRestaurantsView(APIView):
         page = serializer.validated_data["page"]
         page_size = serializer.validated_data["page_size"]
 
-        restaurants = Restaurant.objects.exclude(
-            latitude=None
-        ).exclude(
-            longitude=None
-        )
+        restaurants = Restaurant.objects.exclude(latitude=None).exclude(longitude=None)
 
-        # Compute distances
-        distances = []
-        for r in restaurants:
-            dist = haversine(
-                lat,
-                lon,
-                float(r.latitude),
-                float(r.longitude),
-            )
-            distances.append((r, dist))
+        if not restaurants.exists():
+            return Response({"results": [], "pagination": {}}, status=status.HTTP_200_OK)
 
-        # Sort by distance
-        distances.sort(key=lambda x: x[1])
+        origins = f"{lat},{lon}"
+        destinations = "|".join([f"{r.latitude},{r.longitude}" for r in restaurants])
 
-        # Extract ordered restaurants
-        ordered_restaurants = [r[0] for r in distances]
+        url = f"https://api.neshan.org/v1/distance-matrix?type=car&origins={origins}&destinations={destinations}"
+        headers = {"Api-Key": settings.NESHAN_API_KEY}
 
-        # Proper pagination (same as MyOrdersView)
+        try:
+            response = requests.get(url, headers=headers, timeout=5)
+            response.raise_for_status()
+            data = response.json()
+        except requests.RequestException as e:
+            return Response({"detail": f"Error calling distance API: {str(e)}"},
+                            status=status.HTTP_502_BAD_GATEWAY)
+
+        durations = []
+        if "rows" in data and len(data["rows"]) > 0:
+            elements = data["rows"][0]["elements"]
+            for r, elem in zip(restaurants, elements):
+                duration = elem.get("duration", {}).get("value", float("inf"))  # seconds
+                r.duration_seconds = duration
+                durations.append((r, duration))
+        else:
+            for r in restaurants:
+                r.duration_seconds = None
+                durations.append((r, float("inf")))
+
+        durations.sort(key=lambda x: x[1])
+        ordered_restaurants = [r[0] for r in durations]
+
         paginator = Paginator(ordered_restaurants, page_size)
         page_obj = paginator.get_page(page)
+
+        # Include duration in serialized results
+        serialized_data = RestaurantSerializer(page_obj.object_list, many=True).data
+        for r_obj, r_data in zip(page_obj.object_list, serialized_data):
+            r_data["duration_seconds"] = getattr(r_obj, "duration_seconds", None)
 
         return Response({
             "pagination": {
@@ -190,11 +206,9 @@ class GetClosestRestaurantsView(APIView):
                 "has_next": page_obj.has_next(),
                 "has_previous": page_obj.has_previous(),
             },
-            "results": RestaurantSerializer(
-                page_obj.object_list,
-                many=True
-            ).data
+            "results": serialized_data
         }, status=status.HTTP_200_OK)
+
 
 @extend_schema(
     responses=CategorySerializer(many=True),
