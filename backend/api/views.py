@@ -231,8 +231,9 @@ class SaveMenuItemView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
+        # Ensure the user is a restaurant
         try:
-            restaurant = Restaurant.objects.get(user=request.user)
+            restaurant = request.user.restaurant
         except Restaurant.DoesNotExist:
             return Response(
                 {"error": "Access violation: not a restaurant"},
@@ -240,15 +241,25 @@ class SaveMenuItemView(APIView):
             )
 
         data = request.data.copy()
-        data["restaurant"] = restaurant.id
+
+        # Ensure category belongs to this restaurant
+        category_id = data.get("category")
+        try:
+            category = Category.objects.get(id=category_id, restaurant=restaurant)
+        except (Category.DoesNotExist, TypeError):
+            return Response(
+                {"error": "Invalid category or category does not belong to you"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         serializer = MenuItemSerializer(data=data)
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(category=category)
             return Response(
                 {"message": "Menu item created successfully", "item": serializer.data},
                 status=status.HTTP_201_CREATED
             )
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -266,24 +277,17 @@ class RestaurantMenuGroupedView(APIView):
         except Restaurant.DoesNotExist:
             raise NotFound("Restaurant not found.")
 
-        items = (
-            MenuItem.objects
-            .filter(
-                restaurant=restaurant,
-                is_active=True,
-            )
-            .prefetch_related("categories")
-        )
+        # Fetch items with their category
+        items = MenuItem.objects.filter(
+            category__restaurant=restaurant,
+            is_active=True
+        ).select_related("category")
 
+        # Group by category name
         grouped = defaultdict(list)
-
         for item in items:
-            categories = item.categories.all()
-            if categories:
-                for category in categories:
-                    grouped[category.name].append(item)
-            else:
-                grouped["Uncategorized"].append(item)
+            category_name = item.category.name if item.category else "Uncategorized"
+            grouped[category_name].append(item)
 
         response_data = [
             {
@@ -294,7 +298,6 @@ class RestaurantMenuGroupedView(APIView):
         ]
 
         return Response(response_data, status=status.HTTP_200_OK)
-
 
 
 class OrderCreateView(generics.CreateAPIView):

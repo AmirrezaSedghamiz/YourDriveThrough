@@ -142,23 +142,29 @@ class ClosestRestaurantsSerializer(serializers.Serializer):
 
 
 class CategorySerializer(serializers.ModelSerializer):
+    restaurant_id = serializers.IntegerField(source="restaurant.id", read_only=True)
+
     class Meta:
         model = Category
-        fields = ["id", "name"]
+        fields = ["id", "name", "restaurant_id"]
 
 
 class MenuItemSerializer(serializers.ModelSerializer):
+    category_id = serializers.IntegerField(source="category.id", read_only=True)
+    category_name = serializers.CharField(source="category.name", read_only=True)
+
     class Meta:
         model = MenuItem
         fields = [
             "id",
-            "restaurant",
+            "category_id",
+            "category_name",
             "name",
             "description",
             "price",
             "expected_duration",
-            "categories",
             "image",
+            "is_active",
         ]
 
 
