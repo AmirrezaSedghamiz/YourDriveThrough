@@ -10,6 +10,7 @@ from .serializers import ClosestRestaurantsSerializer
 from .serializers import CategorySerializer
 from .serializers import MenuItemSerializer
 from .serializers import RestaurantMenuRequestSerializer
+from .serializers import RestaurantSearchSerializer
 from django.db import transaction
 from django.utils import timezone
 from django.core.paginator import Paginator
@@ -512,3 +513,43 @@ class OrderStatusUpdateView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class RestaurantSearchView(APIView):
+    permission_classes = []
+
+    def post(self, request):
+        serializer = RestaurantSearchSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        query = serializer.validated_data.get("query", "")
+        page = serializer.validated_data["page"]
+        page_size = serializer.validated_data["page_size"]
+
+        queryset = Restaurant.objects.filter(is_open=True)
+
+        if query:
+            queryset = queryset.filter(
+                name__icontains=query
+            )
+
+        queryset = queryset.order_by("name")
+
+        paginator = Paginator(queryset, page_size)
+        page_obj = paginator.get_page(page)
+
+        return Response({
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total_pages": paginator.num_pages,
+                "total_items": paginator.count,
+                "has_next": page_obj.has_next(),
+                "has_previous": page_obj.has_previous(),
+            },
+            "results": RestaurantSerializer(
+                page_obj.object_list,
+                many=True
+            ).data
+        }, status=status.HTTP_200_OK)
+

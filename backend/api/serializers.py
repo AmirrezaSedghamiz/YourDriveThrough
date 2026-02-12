@@ -359,3 +359,9 @@ class RatingSerializer(serializers.ModelSerializer):
 
 class RestaurantMenuRequestSerializer(serializers.Serializer):
     restaurant_id = serializers.IntegerField()
+
+
+class RestaurantSearchSerializer(serializers.Serializer):
+    query = serializers.CharField(required=False, allow_blank=True)
+    page = serializers.IntegerField(min_value=1, default=1)
+    page_size = serializers.IntegerField(min_value=1, max_value=50, default=10)

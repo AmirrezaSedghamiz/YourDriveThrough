@@ -13,7 +13,7 @@ from .views import AllRestaurantOrdersView
 from .views import RestaurantMenuGroupedView
 from .views import MyOrdersView
 from .views import LeaveRatingView
-
+from .views import RestaurantSearchView
 
 urlpatterns = [
     path("login/", LoginView.as_view(), name="login"),
@@ -23,6 +23,7 @@ urlpatterns = [
     path("menu/save/", SaveMenuItemView.as_view(), name="save_menu_item"),
     path("orders/", OrderCreateView.as_view(), name="create_order"),
     path("restaurants/menu/",RestaurantMenuGroupedView.as_view()),
+    path("restaurants/search/", RestaurantSearchView.as_view()),
 
     # New endpoint for handling current user.
     path("me/", MeView.as_view(), name="me"),
