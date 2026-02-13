@@ -558,6 +558,9 @@ class OrderStatusUpdateView(APIView):
         )
 
 
+@extend_schema(
+    request=RestaurantSearchSerializer(many=False)
+)
 class RestaurantSearchView(APIView):
     permission_classes = []
 
