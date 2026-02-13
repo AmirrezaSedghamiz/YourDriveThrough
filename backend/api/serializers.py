@@ -276,6 +276,10 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
         validated_data = validated_data.copy()
         validated_data.pop("restaurant", None)
+        validated_data.pop("total", None)
+        validated_data.pop("start", None)
+        validated_data.pop("expected_duration", None)
+        validated_data.pop("expected_arrival_time", None)
 
         order = Order.objects.create(
             restaurant=restaurant,
