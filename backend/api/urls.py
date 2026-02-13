@@ -15,11 +15,13 @@ from .views import LeaveRatingView
 from .views import RestaurantSearchView
 from .views import OrderRatingView
 from .views import ReorderView
+from .views import GetClosestRestaurants2View
 
 urlpatterns = [
     path("login/", LoginView.as_view(), name="login"),
     path("signup/", SignupView.as_view(), name="signup"),
     path("restaurant/get_closest/", GetClosestRestaurantsView.as_view(), name="get_closest_restaurants"),
+    path("restaurant/get_closest2/", GetClosestRestaurants2View.as_view(), name="get_closest_restaurants_2"),
     path("orders/rating", OrderRatingView.as_view(), name="get_rating"),
     path("restaurants/menu/",RestaurantMenuGroupedView.as_view()),
     path("restaurants/search/", RestaurantSearchView.as_view()),
