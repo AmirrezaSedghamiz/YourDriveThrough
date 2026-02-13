@@ -351,3 +351,23 @@ class RestaurantSearchSerializer(serializers.Serializer):
     query = serializers.CharField(required=False, allow_blank=True)
     page = serializers.IntegerField(min_value=1, default=1)
     page_size = serializers.IntegerField(min_value=1, max_value=50, default=10)
+
+
+class MenuItemSyncSerializer(serializers.Serializer):
+    id = serializers.IntegerField(required=False)
+    name = serializers.CharField(max_length=255)
+    description = serializers.CharField(max_length=1024)
+    price = serializers.IntegerField()
+    expected_duration = serializers.IntegerField()
+    is_active = serializers.BooleanField(required=False, default=True)
+
+
+class CategorySyncSerializer(serializers.Serializer):
+    id = serializers.IntegerField(required=False)
+    name = serializers.CharField(max_length=255)
+    items = MenuItemSyncSerializer(many=True)
+
+
+class RestaurantMenuSyncSerializer(serializers.Serializer):
+    categories = CategorySyncSerializer(many=True)
+
