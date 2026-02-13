@@ -4,11 +4,15 @@ import 'package:application/SourceDesign/Models/Category.dart';
 
 class RestaurantSettingsState {
   // Profile
+  final int? restaurantId;
   final String? restaurantName;
   final String? currentAddress;
   final double geofenceRadius;
   final File? restaurantImageFile;
   final String? restaurantImageUrl;
+
+  final num? longitude;
+  final num? latitude;
 
   // Menu
   final List<Category> categories;
@@ -27,6 +31,9 @@ class RestaurantSettingsState {
   final String? errorMessage;
 
   const RestaurantSettingsState({
+    this.restaurantId,
+    this.latitude,
+    this.longitude,
     this.restaurantName,
     this.currentAddress,
     this.geofenceRadius = 500,
@@ -34,8 +41,8 @@ class RestaurantSettingsState {
     this.restaurantImageUrl,
     this.categories = const [],
     this.expandedCategoryId,
-    this.isLoadingProfile = true,
-    this.isLoadingMenu = true,
+    this.isLoadingProfile = false,
+    this.isLoadingMenu = false,
     this.isSavingProfile = false,
     this.isSavingMenu = false,
     this.snackBarMessage,
@@ -43,6 +50,7 @@ class RestaurantSettingsState {
   });
 
   RestaurantSettingsState copyWith({
+    int? restaurantId,
     String? restaurantName,
     String? currentAddress,
     double? geofenceRadius,
@@ -59,13 +67,19 @@ class RestaurantSettingsState {
     bool clearSnack = false,
     bool clearError = false,
     bool clearImageFile = false,
+    num? longitude,
+    num? latitude,
   }) {
     return RestaurantSettingsState(
+      longitude: longitude ?? this.longitude,
+      latitude: latitude ?? this.latitude,
+      restaurantId: restaurantId ?? this.restaurantId,
       restaurantName: restaurantName ?? this.restaurantName,
       currentAddress: currentAddress ?? this.currentAddress,
       geofenceRadius: geofenceRadius ?? this.geofenceRadius,
-      restaurantImageFile:
-          clearImageFile ? null : (restaurantImageFile ?? this.restaurantImageFile),
+      restaurantImageFile: clearImageFile
+          ? null
+          : (restaurantImageFile ?? this.restaurantImageFile),
       restaurantImageUrl: restaurantImageUrl ?? this.restaurantImageUrl,
       categories: categories ?? this.categories,
       expandedCategoryId: expandedCategoryId ?? this.expandedCategoryId,
@@ -73,7 +87,9 @@ class RestaurantSettingsState {
       isLoadingMenu: isLoadingMenu ?? this.isLoadingMenu,
       isSavingProfile: isSavingProfile ?? this.isSavingProfile,
       isSavingMenu: isSavingMenu ?? this.isSavingMenu,
-      snackBarMessage: clearSnack ? null : (snackBarMessage ?? this.snackBarMessage),
+      snackBarMessage: clearSnack
+          ? null
+          : (snackBarMessage ?? this.snackBarMessage),
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
   }

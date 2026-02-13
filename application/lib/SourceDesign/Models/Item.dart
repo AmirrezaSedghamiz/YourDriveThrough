@@ -62,4 +62,22 @@ class Item {
   String toJson() => json.encode(toMap());
 
   factory Item.fromJson(String source) => Item.fromMap(json.decode(source) as Map<String, dynamic>);
+
+  Item copyWith({
+    int? id,
+    String? name,
+    String? image,
+    num? expectedDuration,
+    num? price,
+    String? description,
+  }) {
+    return Item(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      image: image ?? this.image,
+      expectedDuration: expectedDuration ?? this.expectedDuration,
+      price: price ?? this.price,
+      description: description ?? this.description,
+    );
+  }
 }

@@ -2,6 +2,7 @@
 import 'dart:collection' show MapView;
 import 'dart:convert';
 import 'dart:io';
+import 'dart:nativewrappers/_internal/vm/lib/ffi_allocation_patch.dart';
 
 import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
 import 'package:application/GlobalWidgets/InternetManager/ConnectionStates.dart';
@@ -21,11 +22,16 @@ import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:location/location.dart';
 
 class MapBuilder extends StatefulWidget {
-  const MapBuilder({super.key, required this.username, this.image, required this.callBackFunction});
+  const MapBuilder({
+    super.key,
+    required this.username,
+    this.image,
+    required this.callBackFunction,
+  });
 
   final String username;
   final File? image;
-  final VoidCallback? callBackFunction;
+  final Function(String, LatLng)? callBackFunction;
 
   @override
   State<MapBuilder> createState() => _MapBuilderState();
@@ -169,6 +175,11 @@ class _MapBuilderState extends State<MapBuilder> {
                       )
                       .then((value) {
                         if (value == ConnectionStates.Success) {
+                          if (widget.callBackFunction != null) {
+                            widget.callBackFunction!(address.data['formatted_address'],
+                             selectedLocation!).call();
+                            NavigationService.pop();
+                          }
                           WidgetsBinding.instance.addPostFrameCallback((_) {
                             NavigationService.popAllAndPush(
                               AppRoutes.fade(DashboardManager(initialPage: 0)),

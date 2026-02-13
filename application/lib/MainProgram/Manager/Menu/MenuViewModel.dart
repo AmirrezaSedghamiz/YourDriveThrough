@@ -1,73 +1,215 @@
 // RestaurantSettingsViewModel.dart
 import 'dart:io';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:application/GlobalWidgets/InternetManager/ConnectionStates.dart';
+import 'package:application/Handlers/Repository/ManagerRepo.dart';
+import 'package:application/MainProgram/Manager/Menu/MenuState.dart';
 import 'package:application/SourceDesign/Models/Category.dart';
 import 'package:application/SourceDesign/Models/Item.dart';
-import 'RestaurantSettingsState.dart';
+import 'package:application/SourceDesign/Models/RestauarantInfo.dart'; // RestaurantInfo
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// You implement these API calls however you want.
+/// ---------------------------------------------------------------------------
+/// Contracts (keep these so you can swap implementations later)
+/// ---------------------------------------------------------------------------
 abstract class RestaurantRepo {
-  Future<RestaurantProfileDto> fetchProfile(int restaurantId);
+  Future<RestaurantInfo> fetchProfile(int restaurantId);
   Future<List<Category>> fetchMenu(int restaurantId);
-}
 
-class RestaurantProfileDto {
-  final String name;
-  final String address;
-  final double radius;
-  final String? imageUrl;
+  Future<void> updateProfile({
+    required int restaurantId,
+    required String name,
+    required String address,
+    required double radiusMeters,
+    File? imageFile,
+    num? longitude,
+    num? latitude,
+  });
 
-  RestaurantProfileDto({
-    required this.name,
-    required this.address,
-    required this.radius,
-    this.imageUrl,
+  Future<void> updateMenu({
+    required int restaurantId,
+    required List<Category> categories,
   });
 }
 
-// Provide your real repo implementation.
-final restaurantRepoProvider = Provider<RestaurantRepo>((ref) {
-  throw UnimplementedError("Provide RestaurantRepo");
-});
 
-class RestaurantSettingsViewModel extends FamilyNotifier<RestaurantSettingsState, int> {
-  late final int restaurantId;
+/// ---------------------------------------------------------------------------
+/// ManagerRepo-backed implementation
+///   - fetchProfile() uses ManagerRepo.getRestaurantProfile()
+///   - fetchMenu() uses ManagerRepo.getMenu(restaurantId)
+///   - updateProfile/updateMenu left as prototypes you replace later
+/// ---------------------------------------------------------------------------
+class ManagerRestaurantRepo implements RestaurantRepo {
+  ManagerRestaurantRepo(this._repo);
+  final ManagerRepo _repo;
 
   @override
-  RestaurantSettingsState build(int arg) {
-    restaurantId = arg;
+  Future<RestaurantInfo> fetchProfile(int restaurantId) async {
+    // NOTE: your ManagerRepo.getRestaurantProfile() doesn’t take id; it uses /me/
+    final res = await _repo.getRestaurantProfile();
 
-    // start with loading
-    state = const RestaurantSettingsState(
-      isLoadingProfile: true,
-      isLoadingMenu: true,
+    if (res is RestaurantInfo) {
+      // ⚠️ Adjust these field names to match your RestaurantInfo model exactly.
+      // I used common ones based on your UI usage.
+      final name = (res.name ?? "").toString();
+      final address = (res.address ?? "").toString();
+
+      // If you don't have radius/image on RestaurantInfo, keep defaults.
+      // final radius = (res.radius ?? 500).toDouble();
+      final imageUrl = res.image; // handle either field name
+
+      return res;
+    }
+
+    // ManagerRepo returns ConnectionStates on errors
+    throw Exception(_connToMessage(res));
+  }
+
+  @override
+  Future<List<Category>> fetchMenu(int restaurantId) async {
+    final res = await _repo.getMenu(restaurantId: restaurantId);
+
+    if (res is List<Category>) return res;
+
+    throw Exception(_connToMessage(res));
+  }
+
+  @override
+  Future<void> updateProfile({
+    required int restaurantId,
+    required String name,
+    required String address,
+    required double radiusMeters,
+    File? imageFile,
+    num? longitude,
+    num? latitude,
+  }) async {
+    // Your existing API: fillRestaurantProfile({ username, longitude, latitude, image, address })
+    // You can wire this now IF you have longitude/latitude ready in the state.
+    if (longitude == null || latitude == null) {
+      throw Exception(
+        "Missing longitude/latitude. Provide them before calling updateProfile.",
+      );
+    }
+
+    final res = await _repo.fillRestaurantProfile(
+      username: name,
+      longitude: longitude,
+      latitude: latitude,
+      image: imageFile,
+      address: address,
     );
 
-    // fire initial fetch (no await in build)
-    _loadInitial();
+    if (res == ConnectionStates.Success) return;
 
-    return state;
+    throw Exception(_connToMessage(res));
   }
 
-  Future<void> _loadInitial() async {
-    // Load them independently so Profile shimmer can stop before Menu, etc.
-    await Future.wait([
-      _loadProfile(),
-      _loadMenu(),
-    ]);
+  @override
+  Future<void> updateMenu({
+    required int restaurantId,
+    required List<Category> categories,
+  }) async {
+    // You don't show an endpoint for saving menu in ManagerRepo.
+    // Keep as prototype.
+    throw UnimplementedError(
+      "Implement menu save API in ManagerRepo then call it here.",
+    );
   }
+
+  String _connToMessage(dynamic state) {
+    switch (state) {
+      case ConnectionStates.BadRequest:
+        return "Bad request (400)";
+      case ConnectionStates.Unauthorized:
+        return "Unauthorized (401)";
+      case ConnectionStates.TokenFailure:
+        return "Token failure (404)";
+      case ConnectionStates.DataBase:
+        return "Database error (500)";
+      case ConnectionStates.BadGateWay:
+        return "Bad gateway (502)";
+      case ConnectionStates.GateWayTimeOut:
+        return "Gateway timeout (504)";
+      case ConnectionStates.Unexpected:
+        return "Unexpected server error";
+      case ConnectionStates.Success:
+        return "Success";
+      default:
+        return "Unknown error: $state";
+    }
+  }
+}
+
+/// ---------------------------------------------------------------------------
+/// Providers
+/// ---------------------------------------------------------------------------
+final managerRepoProvider = Provider<ManagerRepo>((ref) {
+  return ManagerRepo();
+});
+
+final restaurantRepoProvider = Provider<RestaurantRepo>((ref) {
+  final mgr = ref.read(managerRepoProvider);
+  return ManagerRestaurantRepo(mgr);
+});
+
+/// ---------------------------------------------------------------------------
+/// ViewModel
+/// ---------------------------------------------------------------------------
+class RestaurantSettingsViewModel extends Notifier<RestaurantSettingsState> {
+  bool _initialized = false;
+
+  @override
+  RestaurantSettingsState build() {
+    return const RestaurantSettingsState(
+      restaurantId: null,
+      isLoadingProfile: false,
+      isLoadingMenu: false,
+      isSavingProfile: false,
+      isSavingMenu: false,
+    );
+  }
+
+  /// Call once from the page (initState/postFrame)
+  Future<void> init(int restaurantId) async {
+    if (_initialized && state.restaurantId == restaurantId) return;
+    _initialized = true;
+
+    state = state.copyWith(
+      restaurantId: restaurantId,
+      isLoadingProfile: true,
+      isLoadingMenu: true,
+      clearError: true,
+      clearSnack: true,
+    );
+
+    await Future.wait([_loadProfile(), _loadMenu()]);
+  }
+
+  Future<void> refreshAll() async {
+    await Future.wait([_loadProfile(), _loadMenu()]);
+  }
+
+  // ---------------- Fetchers ----------------
 
   Future<void> _loadProfile() async {
+    final id = state.restaurantId;
+    if (id == null) return;
+
     state = state.copyWith(isLoadingProfile: true, clearError: true);
+
     try {
       final repo = ref.read(restaurantRepoProvider);
-      final p = await repo.fetchProfile(restaurantId);
+      final p = await repo.fetchProfile(id);
 
       state = state.copyWith(
         restaurantName: p.name,
         currentAddress: p.address,
-        geofenceRadius: p.radius,
-        restaurantImageUrl: p.imageUrl,
+        geofenceRadius: 0,
+        restaurantImageUrl: p.image,
+        longitude: p.latitude,
+        latitude: p.latitude,
+        // if user already picked a file, keep it
         isLoadingProfile: false,
       );
     } catch (e) {
@@ -79,13 +221,18 @@ class RestaurantSettingsViewModel extends FamilyNotifier<RestaurantSettingsState
   }
 
   Future<void> _loadMenu() async {
+    final id = state.restaurantId;
+    if (id == null) return;
+
     state = state.copyWith(isLoadingMenu: true, clearError: true);
+
     try {
       final repo = ref.read(restaurantRepoProvider);
-      final cats = await repo.fetchMenu(restaurantId);
+      final cats = await repo.fetchMenu(id);
 
+      // Ensure list is a fresh instance to avoid sliver issues
       state = state.copyWith(
-        categories: cats,
+        categories: List<Category>.from(cats),
         isLoadingMenu: false,
       );
     } catch (e) {
@@ -96,12 +243,10 @@ class RestaurantSettingsViewModel extends FamilyNotifier<RestaurantSettingsState
     }
   }
 
-  Future<void> refreshAll() async {
-    await Future.wait([_loadProfile(), _loadMenu()]);
-  }
+  // ---------------- Profile edits ----------------
 
-  // ------- Profile edits -------
   void setRestaurantName(String v) => state = state.copyWith(restaurantName: v);
+
   void setAddress(String v) => state = state.copyWith(currentAddress: v);
 
   void setGeofenceRadius(double meters) {
@@ -109,20 +254,66 @@ class RestaurantSettingsViewModel extends FamilyNotifier<RestaurantSettingsState
   }
 
   void setRestaurantImageFile(File? file) {
-    state = state.copyWith(restaurantImageFile: file);
+    // if local file exists, prefer it over remote url in UI
+    state = state.copyWith(
+      restaurantImageFile: file,
+      restaurantImageUrl: file != null ? null : state.restaurantImageUrl,
+    );
   }
 
-  Future<void> submitProfileChanges() async {
+  /// Optional: if you later store lng/lat in state
+  void setLocationCoords({num? longitude, num? latitude}) {
+    state = state.copyWith(latitude: latitude, longitude: longitude);
+  }
+
+  Future<void> submitProfileChanges({
+    // You can pass coords from UI/map picker even if not stored in state
+    num? longitude,
+    num? latitude,
+  }) async {
+    final id = state.restaurantId;
+    if (id == null) {
+      state = state.copyWith(errorMessage: "Restaurant ID missing.");
+      return;
+    }
     if (state.isSavingProfile) return;
+
+    final name = (state.restaurantName ?? "").trim();
+    final address = (state.currentAddress ?? "").trim();
+
+    if (name.isEmpty) {
+      state = state.copyWith(errorMessage: "Restaurant name cannot be empty.");
+      return;
+    }
+    if (address.isEmpty) {
+      state = state.copyWith(
+        errorMessage: "Restaurant address cannot be empty.",
+      );
+      return;
+    }
+
     state = state.copyWith(isSavingProfile: true, clearError: true);
 
     try {
-      // TODO: call your API with restaurantId + profile fields
-      await Future.delayed(const Duration(milliseconds: 500));
+      final repo = ref.read(restaurantRepoProvider);
+
+      await repo.updateProfile(
+        restaurantId: id,
+        name: name,
+        address: address,
+        radiusMeters: state.geofenceRadius,
+        imageFile: state.restaurantImageFile,
+        longitude: longitude,
+        latitude: latitude,
+      );
+
       state = state.copyWith(
         isSavingProfile: false,
         snackBarMessage: "Profile updated",
       );
+
+      // Re-fetch so backend becomes source of truth (imageUrl / normalized fields)
+      await _loadProfile();
     } catch (e) {
       state = state.copyWith(
         isSavingProfile: false,
@@ -131,16 +322,19 @@ class RestaurantSettingsViewModel extends FamilyNotifier<RestaurantSettingsState
     }
   }
 
-  // ------- Menu edits -------
-  void setExpandedCategory(int? id) => state = state.copyWith(expandedCategoryId: id);
+  // ---------------- Menu edits ----------------
+
+  void setExpandedCategory(int? id) =>
+      state = state.copyWith(expandedCategoryId: id);
 
   void addCategory(String name) {
     final trimmed = name.trim();
     if (trimmed.isEmpty) return;
 
     final nextId = _nextCategoryId();
+
     final updated = List<Category>.from(state.categories)
-      ..add(Category(id: nextId, name: trimmed, item: []));
+      ..add(Category(id: nextId, name: trimmed, item: const []));
 
     state = state.copyWith(categories: updated, expandedCategoryId: nextId);
   }
@@ -149,10 +343,12 @@ class RestaurantSettingsViewModel extends FamilyNotifier<RestaurantSettingsState
     final trimmed = newName.trim();
     if (trimmed.isEmpty) return;
 
-    final updated = state.categories.map((c) {
-      if (c.id != categoryId) return c;
-      return Category(id: c.id, name: trimmed, item: c.item);
-    }).toList();
+    final updated = state.categories
+        .map((c) {
+          if (c.id != categoryId) return c;
+          return Category(id: c.id, name: trimmed, item: c.item);
+        })
+        .toList(growable: false);
 
     state = state.copyWith(categories: updated);
   }
@@ -161,51 +357,85 @@ class RestaurantSettingsViewModel extends FamilyNotifier<RestaurantSettingsState
     final updated = List<Category>.from(state.categories)
       ..removeWhere((c) => c.id == categoryId);
 
-    final expanded = state.expandedCategoryId == categoryId ? null : state.expandedCategoryId;
+    final expanded = state.expandedCategoryId == categoryId
+        ? null
+        : state.expandedCategoryId;
+
     state = state.copyWith(categories: updated, expandedCategoryId: expanded);
   }
 
   void addItem(int categoryId, Item item) {
-    final updated = state.categories.map((c) {
-      if (c.id != categoryId) return c;
-      final items = List<Item>.from(c.item)..add(item);
-      return Category(id: c.id, name: c.name, item: items);
-    }).toList();
+    final updated = state.categories
+        .map((c) {
+          if (c.id != categoryId) return c;
+
+          final items = List<Item>.from(c.item)
+            ..add(
+              item.id == 0
+                  ? item.copyWith(id: DateTime.now().microsecondsSinceEpoch)
+                  : item,
+            );
+
+          return Category(id: c.id, name: c.name, item: items);
+        })
+        .toList(growable: false);
 
     state = state.copyWith(categories: updated, expandedCategoryId: categoryId);
   }
 
   void updateItem(int categoryId, Item updatedItem) {
-    final updated = state.categories.map((c) {
-      if (c.id != categoryId) return c;
-      final items = c.item.map((it) => it.id == updatedItem.id ? updatedItem : it).toList();
-      return Category(id: c.id, name: c.name, item: items);
-    }).toList();
+    final updated = state.categories
+        .map((c) {
+          if (c.id != categoryId) return c;
+
+          final items = c.item
+              .map((it) => it.id == updatedItem.id ? updatedItem : it)
+              .toList(growable: false);
+
+          return Category(id: c.id, name: c.name, item: items);
+        })
+        .toList(growable: false);
 
     state = state.copyWith(categories: updated);
   }
 
   void deleteItem(int categoryId, int itemId) {
-    final updated = state.categories.map((c) {
-      if (c.id != categoryId) return c;
-      final items = List<Item>.from(c.item)..removeWhere((it) => it.id == itemId);
-      return Category(id: c.id, name: c.name, item: items);
-    }).toList();
+    final updated = state.categories
+        .map((c) {
+          if (c.id != categoryId) return c;
+
+          final items = List<Item>.from(c.item)
+            ..removeWhere((it) => it.id == itemId);
+
+          return Category(id: c.id, name: c.name, item: items);
+        })
+        .toList(growable: false);
 
     state = state.copyWith(categories: updated);
   }
 
   Future<void> submitMenuChanges() async {
+    final id = state.restaurantId;
+    if (id == null) {
+      state = state.copyWith(errorMessage: "Restaurant ID missing.");
+      return;
+    }
     if (state.isSavingMenu) return;
+
     state = state.copyWith(isSavingMenu: true, clearError: true);
 
     try {
-      // TODO: call your API with restaurantId + state.categories
-      await Future.delayed(const Duration(milliseconds: 700));
+      final repo = ref.read(restaurantRepoProvider);
+
+      await repo.updateMenu(restaurantId: id, categories: state.categories);
+
       state = state.copyWith(
         isSavingMenu: false,
         snackBarMessage: "Menu saved",
       );
+
+      // Optional: reload authoritative data
+      await _loadMenu();
     } catch (e) {
       state = state.copyWith(
         isSavingMenu: false,
@@ -213,6 +443,8 @@ class RestaurantSettingsViewModel extends FamilyNotifier<RestaurantSettingsState
       );
     }
   }
+
+  // ---------------- UI helpers ----------------
 
   void clearSnack() => state = state.copyWith(clearSnack: true);
 
@@ -223,7 +455,8 @@ class RestaurantSettingsViewModel extends FamilyNotifier<RestaurantSettingsState
   }
 }
 
+/// Provider
 final restaurantSettingsViewModelProvider =
-    NotifierProvider.family<RestaurantSettingsViewModel, RestaurantSettingsState, int>(
-  RestaurantSettingsViewModel.new,
-);
+    NotifierProvider<RestaurantSettingsViewModel, RestaurantSettingsState>(
+      () => RestaurantSettingsViewModel(),
+    );

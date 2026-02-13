@@ -72,13 +72,14 @@ class OrderViewModel extends Notifier<OrderState> {
       }
       final loc = await LocationService().getUserLocation();
       if (loc.data == null) return;
-      
+
       final data = await OrderRepo().orderItems(
         restaurantId: state.submittedOrders[0].restaurantId,
         latitude: loc.data!.latitude!,
         longitude: loc.data!.longitude!,
         items: orders,
       );
+      clearDraft();
       state = state.copyWith(isSubmitting: false);
     } catch (e) {
       state = state.copyWith(isSubmitting: false, error: '$e');

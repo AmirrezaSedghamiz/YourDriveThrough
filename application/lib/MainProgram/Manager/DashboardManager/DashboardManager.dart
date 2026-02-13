@@ -190,6 +190,7 @@ class _DashboardManagerState extends ConsumerState<DashboardManager>
             OrdersHistoryPagedList(fetchPage: OrderRepo().getOrderList),
 
             RestaurantSettings(
+              restaurantId: myRestaurant?.id ?? -1,
               callback: getRestaurant,
             ),
           ],

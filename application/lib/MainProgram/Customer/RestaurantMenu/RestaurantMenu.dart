@@ -3,6 +3,7 @@ import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
 import 'package:application/GlobalWidgets/NavigationServices/NavigationService.dart';
 import 'package:application/GlobalWidgets/NavigationServices/RouteFactory.dart';
 import 'package:application/GlobalWidgets/ReusableComponents/AppBar.dart';
+import 'package:application/MainProgram/Customer/DashboardCustomer/DashboardCustomer.dart';
 import 'package:application/MainProgram/Customer/MainPage/MainPage.dart';
 import 'package:application/MainProgram/Customer/RestaurantMenu/OrderViewModel.dart';
 import 'package:application/MainProgram/Manager/DashboardManager/DashboardManager.dart';
@@ -12,7 +13,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'RestaurantMenuViewModel.dart';
 
 class RestaurantMenu extends ConsumerStatefulWidget {
-  const RestaurantMenu({super.key, required this.restaurantId, required this.restaurantName});
+  const RestaurantMenu({
+    super.key,
+    required this.restaurantId,
+    required this.restaurantName,
+  });
   final int restaurantId;
   final String restaurantName;
 
@@ -59,8 +64,9 @@ class _RestaurantMenuState extends ConsumerState<RestaurantMenu> {
 
     return Scaffold(
       appBar: AppAppBar(
-        backgroundColor: state.selectedItem != null ? Colors.black.withOpacity(0.35) :
-        AppColors.background,
+        backgroundColor: state.selectedItem != null
+            ? Colors.black.withOpacity(0.35)
+            : AppColors.background,
         leading: GestureDetector(
           onTap: () {
             NavigationService.pop();
@@ -387,14 +393,19 @@ class _OrdersSheet extends ConsumerWidget {
                                 await orderVm.finalizeOrder();
                                 if (context.mounted) {
                                   NavigationService.popAllAndPush(
-                                  AppRoutes.fade(CustomerHomePage()));
+                                    AppRoutes.fade(
+                                      DashboardCustomer(initialPage: 0),
+                                    ),
+                                  );
                                 }
                               }
                             },
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
-                          color: order.submittedOrders.isEmpty ? Colors.grey : Colors.black,
+                          color: order.submittedOrders.isEmpty
+                              ? Colors.grey
+                              : Colors.black,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Center(
