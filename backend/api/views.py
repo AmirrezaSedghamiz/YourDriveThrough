@@ -290,28 +290,39 @@ class RestaurantMenuGroupedView(APIView):
         except Restaurant.DoesNotExist:
             raise NotFound("Restaurant not found.")
 
-        # Fetch items with their category
-        items = MenuItem.objects.filter(
-            category__restaurant=restaurant,
-            is_active=True
-        ).select_related("category")
+        items = (
+            MenuItem.objects
+            .filter(
+                category__restaurant=restaurant,
+                is_active=True
+            )
+            .select_related("category")
+        )
 
-        # Group by category name
         grouped = defaultdict(list)
-        for item in items:
-            category_name = item.category.name if item.category else "Uncategorized"
-            grouped[category_name].append(item)
 
-        response_data = [
-            {
+        for item in items:
+            if item.category:
+                key = item.category.id
+            else:
+                key = None
+            grouped[key].append(item)
+
+        response_data = []
+
+        for category_id, category_items in grouped.items():
+            if category_id is None:
+                category_name = "Uncategorized"
+            else:
+                category_name = category_items[0].category.name
+
+            response_data.append({
+                "id": category_id,
                 "category": category_name,
-                "items": MenuItemSerializer(items, many=True).data,
-            }
-            for category_name, items in grouped.items()
-        ]
+                "items": MenuItemSerializer(category_items, many=True).data,
+            })
 
         return Response(response_data, status=status.HTTP_200_OK)
-
 
 class OrderCreateView(generics.CreateAPIView):
     serializer_class = OrderCreateSerializer
