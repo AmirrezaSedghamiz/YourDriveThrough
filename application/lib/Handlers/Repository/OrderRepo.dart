@@ -87,6 +87,7 @@ class OrderRepo {
   }
 
   Future<dynamic> _getAllCategoriesHandler(Response response) async {
+    
     if (response.statusCode == 200) {
       List<Order> orders = [];
       for (var i in response.data["results"]) {
@@ -227,6 +228,7 @@ class OrderRepo {
   Future<dynamic> rateOrder({required int orderId, required int rate}) {
     return _rateOrderKwargBuilder({'id': orderId, 'rate': rate});
   }
+
   //////////////////////////////////////////////////////
   Future<Response> _orderItemsRequest(Map<String, dynamic> kwargs) async {
     Options options = Options(
@@ -240,8 +242,11 @@ class OrderRepo {
       'me/orders/create/',
       options: options,
       data: {
-        'number': kwargs['rate'], 
-        'order': kwargs['id']},
+        'restaurant': kwargs['restaurant'],
+        'longitude': kwargs['longitude'],
+        'latitude': kwargs['latitude'],
+        'items': kwargs['items'],
+      },
     );
   }
 
@@ -272,14 +277,25 @@ class OrderRepo {
   }
 
   Future<dynamic> orderItems({
-    required int restaurantId, 
+    required int restaurantId,
     required num latitude,
     required num longitude,
-    required List<int> items,
-    }) {
-    return _orderItemsKwargBuilder({
-        // 'id': orderId, 
-        // 'rate': rate
+    required List<Map<int, int>> items,
+  }) {
+    List<Map<String, dynamic>> item = [];
+    for (var i in items) {
+      item.add({
+        "menu_item": i.keys.toList()[0],
+        "quantity": i.values.toList()[0],
+        'special': "",
       });
+    }
+
+    return _orderItemsKwargBuilder({
+      'restaurant': restaurantId,
+      'longitude': longitude,
+      'latitude': latitude,
+      'items': item,
+    });
   }
 }

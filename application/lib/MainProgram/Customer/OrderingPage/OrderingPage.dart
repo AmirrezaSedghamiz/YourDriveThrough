@@ -16,7 +16,7 @@ class UserOrderHistory extends StatefulWidget {
     this.pageSize = 20,
     this.firstPageKey = 1,
     this.onReorder,
-    this.onOpenActive, // tap on active card
+    this.onOpenActive,
   });
 
   final Future<dynamic> Function({
@@ -52,6 +52,8 @@ class _UserOrderHistoryState extends State<UserOrderHistory>
       ..addPageRequestListener(_fetchPage);
   }
 
+  List<Order> _activeOrders = [];
+
   Future<void> _fetchPage(int pageKey) async {
     try {
       final res = await widget.fetchPage(
@@ -67,10 +69,16 @@ class _UserOrderHistoryState extends State<UserOrderHistory>
       // Past: everything else
       final past = incoming.where((o) => !_isActiveStatus(o.status)).toList();
 
-      // Keep one active pinned
-      if (_activeOrder == null && active.isNotEmpty) {
-        _activeOrder = active.first;
-      }
+      if (pageKey == widget.firstPageKey) {
+      setState(() {
+        _activeOrders = active;
+      });
+    } else if (active.isNotEmpty) {
+      // optional: append actives from later pages if your API mixes them
+      setState(() {
+        _activeOrders = [..._activeOrders, ...active];
+      });
+    }
 
       if (res["isLastPage"] == true) {
         _pagingController.appendLastPage(past);
@@ -118,28 +126,19 @@ class _UserOrderHistoryState extends State<UserOrderHistory>
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
               sliver: SliverToBoxAdapter(
-                child: _activeOrder == null
-                    ? const SizedBox.shrink()
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Active Order",
-                            style: t.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          _ActiveOrderCard(
-                            order: _activeOrder!,
-                            onTap:
-                                widget.onOpenActive ??
-                                () {
-                                  // default: do nothing (you choose logic)
-                                },
-                          ),
-                        ],
-                      ),
+                child:_activeOrders.isEmpty
+    ? const SizedBox.shrink()
+    : Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("Active Orders", style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 10),
+          ..._activeOrders.map((o) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _ActiveOrderCard(order: o, onTap: widget.onOpenActive ?? () {}),
+              )),
+        ],
+      ),
               ),
             ),
 

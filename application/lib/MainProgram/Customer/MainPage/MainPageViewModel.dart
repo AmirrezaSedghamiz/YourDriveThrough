@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:application/GlobalWidgets/PermissionHandlers/Location/Location.dart';
 import 'package:application/Handlers/Repository/CustomerRepo.dart';
+import 'package:application/Handlers/Repository/OrderRepo.dart';
 import 'package:application/MainProgram/Customer/MainPage/MainPageState.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -105,10 +106,13 @@ class CustomerHomeViewModel extends Notifier<CustomerHomeState> {
 
   Future<void> refreshOrders() async {
     state = state.copyWith(ordersLoading: true, clearOrdersError: true);
-
     try {
-      await Future.delayed(const Duration(milliseconds: 450));
-      state = state.copyWith(ordersLoading: false, orders: _mockOrders());
+      final data = (await OrderRepo().getOrderList(
+        pageKey: 1,
+        pageSize: 100,
+        statuses: ['done', 'accepted', 'pending'],
+      ))['orders'];
+      state = state.copyWith(ordersLoading: false, orders: data);
     } catch (e) {
       state = state.copyWith(ordersLoading: false, ordersError: "$e");
     }
@@ -118,29 +122,11 @@ class CustomerHomeViewModel extends Notifier<CustomerHomeState> {
     state = state.copyWith(workingOrderId: orderId, clearOrdersError: true);
 
     try {
-      await Future.delayed(const Duration(milliseconds: 350));
-      final updated = state.orders
-          .map((o) {
-            if (o.id != orderId) return o;
-            if (o.status != OrderStatus.done) return o;
-
-            // rebuild (no copyWith assumptions)
-            return Order(
-              id: o.id,
-              customerId: o.customerId,
-              restaurantId: o.restaurantId,
-              customerPhone: o.customerPhone,
-              restaurantName: o.restaurantName,
-              status: OrderStatus.recieved,
-              createdAt: o.createdAt,
-              expectedDuration: o.expectedDuration,
-              total: o.total,
-              items: o.items,
-            );
-          })
-          .toList(growable: false);
-
-      state = state.copyWith(orders: updated, clearWorkingOrder: true);
+      final data = await OrderRepo().updateStatus(
+        newStatus: "received",
+        orderId: orderId,
+      );
+      refreshOrders();
     } catch (e) {
       state = state.copyWith(clearWorkingOrder: true, ordersError: "$e");
     }
@@ -156,7 +142,6 @@ class CustomerHomeViewModel extends Notifier<CustomerHomeState> {
       // await Future.delayed(const Duration(milliseconds: 450));
       // final newItems = _mockRestaurants(page: pageKey);
       final loc = await LocationService().getUserLocation();
-      print("loc = " + loc.data.toString());
       if (loc.data == null) return;
       final newItems = await CustomerRepo().getRestaurantList(
         pageSize: _pageSize,
