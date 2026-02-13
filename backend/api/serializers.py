@@ -5,6 +5,11 @@ from django.shortcuts import get_object_or_404
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import Customer, Restaurant, Category, MenuItem, Order, OrderItem, Rating
 from .exceptions import RoleNotFound
+from django.utils import timezone
+from django.conf import settings
+import requests
+
+
 
 
 User = get_user_model()
@@ -174,13 +179,15 @@ class OrderItemCreateSerializer(serializers.Serializer):
     quantity = serializers.IntegerField(min_value=1)
     special = serializers.CharField(required=False, allow_blank=True)
 
-
 class OrderCreateSerializer(serializers.ModelSerializer):
     items = OrderItemCreateSerializer(many=True)
 
+    latitude = serializers.FloatField(write_only=True)
+    longitude = serializers.FloatField(write_only=True)
+
     class Meta:
         model = Order
-        fields = ("restaurant", "items")
+        fields = ("restaurant", "items", "latitude", "longitude")
 
     def validate(self, data):
         items = data["items"]
@@ -199,12 +206,45 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
         return data
 
+    def _get_neshan_duration(self, origin_lat, origin_lon, dest_lat, dest_lon):
+        """
+        Returns duration in seconds using Neshan Distance Matrix API.
+        Falls back to 0 if API fails.
+        """
+        if (
+            origin_lat < 0 or origin_lon < 0 or
+            dest_lat < 0 or dest_lon < 0
+        ):
+            return 0
+
+        url = (
+            "https://api.neshan.org/v1/distance-matrix"
+            f"?type=car&origins={origin_lat:.6f},{origin_lon:.6f}"
+            f"&destinations={dest_lat:.6f},{dest_lon:.6f}"
+        )
+
+        headers = {
+            "Api-Key": settings.NESHAN_API_KEY
+        }
+
+        try:
+            response = requests.get(url, headers=headers, timeout=5)
+            response.raise_for_status()
+            data = response.json()
+
+            return data["rows"][0]["elements"][0]["duration"]["value"]
+
+        except Exception:
+            return 0
+
     def create(self, validated_data):
         items_data = validated_data.pop("items")
+        origin_lat = validated_data.pop("latitude")
+        origin_lon = validated_data.pop("longitude")
         restaurant = validated_data["restaurant"]
 
         total = 0
-        max_duration = None
+        max_duration = 0
 
         menu_items = {
             item.id: item
@@ -218,14 +258,23 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             qty = item["quantity"]
 
             total += menu_item.price * qty
+            max_duration = max(max_duration, menu_item.expected_duration)
 
-            if not max_duration or menu_item.expected_duration > max_duration:
-                max_duration = menu_item.expected_duration
+        travel_duration = self._get_neshan_duration(
+            origin_lat,
+            origin_lon,
+            float(restaurant.latitude),
+            float(restaurant.longitude),
+        )
+
+        expected_arrival_time = travel_duration
 
         order = Order.objects.create(
             restaurant=restaurant,
             expected_duration=max_duration,
+            expected_arrival_time=expected_arrival_time,
             total=total,
+            start=timezone.now(),
             **validated_data,
         )
 
@@ -273,6 +322,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "total",
             "start",
             "expected_duration",
+            "expected_arrival_time",
             "restaurant_name",
             "customer_phone",
             "items",

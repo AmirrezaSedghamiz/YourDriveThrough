@@ -333,7 +333,7 @@ class OrderCreateView(generics.CreateAPIView):
             serializer.save(
                 customer=customer,
                 status="pending",
-                created_at=timezone.now(),
+                start=timezone.now(),
             )
 
 
