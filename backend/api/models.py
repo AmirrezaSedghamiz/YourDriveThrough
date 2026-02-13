@@ -38,8 +38,8 @@ class Restaurant(models.Model):
 
     name = models.CharField(max_length=255,null=True, blank=True)
     address = models.TextField(null=True, blank=True)
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    latitude = models.DecimalField(max_digits=15, decimal_places=12, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=15, decimal_places=12, null=True, blank=True)
     image = models.ImageField(null=True, blank=True)
 
     is_open = models.BooleanField(default=False)

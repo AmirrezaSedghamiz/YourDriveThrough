@@ -23,7 +23,7 @@ from collections import defaultdict
 from rest_framework.exceptions import NotFound
 from drf_spectacular.utils import extend_schema
 from django.shortcuts import get_object_or_404
-from django.db.models import Case, When, IntegerField
+from django.db.models import Case, When, IntegerField, Prefetch
 import requests
 from django.conf import settings
 
@@ -392,6 +392,14 @@ class MyOrdersView(APIView):
         else:
             raise PermissionDenied("User has no valid role.")
 
+        queryset = queryset.prefetch_related(
+            Prefetch(
+                "rating_set",
+                queryset=Rating.objects.only("id", "number", "order"),
+                to_attr="prefetched_ratings",
+            )
+        )
+
         # filter statuses if provided
         if statuses:
             queryset = queryset.filter(status__in=statuses)
@@ -416,6 +424,20 @@ class MyOrdersView(APIView):
         paginator = Paginator(queryset, page_size)
         page_obj = paginator.get_page(page)
 
+        orders = page_obj.object_list
+        serialized_orders = OrderSerializer(orders, many=True).data
+
+        # Attach rating to each order (if exists)
+        for order_obj, order_data in zip(orders, serialized_orders):
+            ratings = getattr(order_obj, "prefetched_ratings", [])
+            if ratings:
+                order_data["rating"] = {
+                    "id": ratings[0].id,
+                    "number": ratings[0].number,
+                }
+            else:
+                order_data["rating"] = None
+
         return Response({
             "role": role,
             "pagination": {
@@ -426,11 +448,9 @@ class MyOrdersView(APIView):
                 "has_next": page_obj.has_next(),
                 "has_previous": page_obj.has_previous(),
             },
-            "results": OrderSerializer(
-                page_obj.object_list,
-                many=True
-            ).data
+            "results": serialized_orders
         })
+
 
 
 
