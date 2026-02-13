@@ -1,7 +1,9 @@
 import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
 import 'package:application/Handlers/Repository/OrderRepo.dart';
 import 'package:application/MainProgram/Customer/DashboardCustomer/DashboardCustomerViewModel.dart';
+import 'package:application/MainProgram/Customer/MainPage/MainPage.dart';
 import 'package:application/MainProgram/Customer/OrderingPage/OrderingPage.dart';
+import 'package:application/MainProgram/Customer/Profile/Profile.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -59,8 +61,11 @@ class _DashboardCustomerState extends ConsumerState<DashboardCustomer> {
             viewModel.togglePage(index);
           },
           children: [
+            CustomerHomePage(),
+            const SizedBox(),
             UserOrderHistory(fetchPage: OrderRepo().getOrderList),
-             const SizedBox(), const SizedBox(), const SizedBox()],
+            ProfilePage()  
+          ],
         ),
         bottomNavigationBar: Container(
           decoration: const BoxDecoration(

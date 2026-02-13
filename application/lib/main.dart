@@ -6,6 +6,9 @@ import 'package:application/Handlers/Repository/ManagerRepo.dart';
 import 'package:application/Handlers/SharePreferencesManager.dart';
 import 'package:application/Handlers/TokenHandler.dart';
 import 'package:application/MainProgram/Customer/DashboardCustomer/DashboardCustomer.dart';
+import 'package:application/MainProgram/Customer/MainPage/MainPage.dart';
+import 'package:application/MainProgram/Customer/Profile/Profile.dart';
+import 'package:application/MainProgram/Customer/RestaurantMenu/RestaurantMenu.dart';
 import 'package:application/MainProgram/Login/Login.dart';
 import 'package:application/MainProgram/Manager/DashboardManager/DashboardManager.dart';
 import 'package:application/MainProgram/SplashScreen/SplashScreen.dart';
@@ -60,7 +63,8 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       navigatorKey: NavigationService.navigatorKey,
       theme: AppTheme.lightTheme,
-      home: SplashScreen(),
+      home: CustomerHomePage(),
+      // home: SplashScr1een(),
     );
   }
 }
