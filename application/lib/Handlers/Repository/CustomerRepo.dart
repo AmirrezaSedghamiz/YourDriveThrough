@@ -244,4 +244,77 @@ class CustomerRepo {
   Future<dynamic> getProfile() {
     return _getProfileKwargBuilder({});
   }
+  ///////////////////////////////////////////////////////////////////
+
+  Future<Response> _getRestaurantListBySearchRequest(
+    Map<String, dynamic> kwargs,
+  ) async {
+    print("SHIT IS GOING ON");
+    Options options = Options(
+      followRedirects: false,
+      validateStatus: (status) {
+        return status! < 600;
+      },
+      headers: {'Authorization': await TokenStore.getAccessToken()},
+    );
+    return await HttpClient.instance.post(
+      'restaurants/search/',
+      options: options,
+      data: {
+        'page_size': kwargs["pageSize"],
+        'page': kwargs["pageIndex"],
+        'query': kwargs["search"],
+      },
+    );
+  }
+
+  Future<dynamic> _getRestaurantListBySearchHandler(Response response) async {
+    print(response.data);
+    print(response.statusCode);
+    if (response.statusCode == 200) {
+      List<RestaurantInfo> restaurants = [];
+      for (var i in response.data['results']) {
+        restaurants.add(RestaurantInfo.fromMap(i));
+      }
+      return restaurants;
+    } else if (response.statusCode == 400) {
+      return ConnectionStates.BadRequest;
+    } else if (response.statusCode == 401) {
+      return ConnectionStates.Unauthorized;
+    } else if (response.statusCode == 404) {
+      return ConnectionStates.TokenFailure;
+    } else {
+      if (response.statusCode == 500) {
+        return ConnectionStates.DataBase;
+      } else if (response.statusCode == 502) {
+        return ConnectionStates.BadGateWay;
+      } else if (response.statusCode == 504) {
+        return ConnectionStates.GateWayTimeOut;
+      } else {
+        return ConnectionStates.Unexpected;
+      }
+    }
+  }
+
+  Future<dynamic> _getRestaurantListBySearchKwargBuilder(
+    Map<String, dynamic> kwargs,
+  ) async {
+    return handleErrors(
+      kwargs,
+      _getRestaurantListBySearchRequest,
+      _getRestaurantListBySearchHandler,
+    );
+  }
+
+  Future<dynamic> getRestaurantListBySearch({
+    required int pageSize,
+    required int pageKey,
+    required String query,
+  }) {
+    return _getRestaurantListBySearchKwargBuilder({
+      'pageSize': pageSize,
+      'pageIndex': pageKey,
+      'search': query,
+    });
+  }
 }

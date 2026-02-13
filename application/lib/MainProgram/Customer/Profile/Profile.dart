@@ -332,16 +332,9 @@ class _TopCard extends StatelessWidget {
                   username.isEmpty ? "—" : username,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: t.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+                  style: t.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  "Online • New Y",
-                  style: t.bodySmall?.copyWith(
-                    color: Colors.black.withOpacity(0.55),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+
               ],
             ),
           ),

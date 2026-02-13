@@ -2,7 +2,6 @@
 import 'dart:collection' show MapView;
 import 'dart:convert';
 import 'dart:io';
-import 'dart:nativewrappers/_internal/vm/lib/ffi_allocation_patch.dart';
 
 import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
 import 'package:application/GlobalWidgets/InternetManager/ConnectionStates.dart';

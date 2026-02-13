@@ -30,6 +30,7 @@ class CustomerHomeState {
     String? ordersError,
     bool clearOrdersError = false,
     bool? initialized,
+    bool? showSearchResults
   }) {
     return CustomerHomeState(
       searchQuery: searchQuery ?? this.searchQuery,

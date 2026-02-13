@@ -29,7 +29,6 @@ class _DashboardManagerState extends ConsumerState<DashboardManager>
   late final PageController _pageController;
   DateTime? _lastPressedTime; // Just track the last press time
 
-  //TESTER
   bool flexTest = false;
 
   RestaurantInfo? myRestaurant;

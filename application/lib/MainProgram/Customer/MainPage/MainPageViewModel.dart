@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:application/GlobalWidgets/PermissionHandlers/Location/Location.dart';
 import 'package:application/Handlers/Repository/CustomerRepo.dart';
+import 'package:application/Handlers/Repository/ManagerRepo.dart';
 import 'package:application/Handlers/Repository/OrderRepo.dart';
 import 'package:application/MainProgram/Customer/MainPage/MainPageState.dart';
 import 'package:flutter/material.dart';
@@ -28,11 +29,15 @@ class CustomerHomeViewModel extends Notifier<CustomerHomeState> {
   final PagingController<int, RestaurantInfo> searchPagingController =
       PagingController(firstPageKey: _firstPageKey);
 
+  bool _pagingBound = false;
+
   @override
   CustomerHomeState build() {
-    // Hook page request listeners ONCE
-    recommendedPagingController.addPageRequestListener(_fetchRecommendedPage);
-    searchPagingController.addPageRequestListener(_fetchSearchPage);
+    if (!_pagingBound) {
+      _pagingBound = true;
+      recommendedPagingController.addPageRequestListener(_fetchRecommendedPage);
+      searchPagingController.addPageRequestListener(_fetchSearchPage);
+    }
 
     ref.onDispose(() {
       _debounce?.cancel();
@@ -78,27 +83,34 @@ class CustomerHomeViewModel extends Notifier<CustomerHomeState> {
   // ------------------------
 
   void setSearchQuery(String v) {
-    state = state.copyWith(searchQuery: v);
+  state = state.copyWith(searchQuery: v);
 
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), () {
-      final q = state.searchQuery.trim();
-      if (q.isEmpty) {
-        // requirement: show nothing if empty
-        searchPagingController.itemList = [];
-        searchPagingController.error = null;
-        return;
-      }
+  _debounce?.cancel();
+  _debounce = Timer(const Duration(milliseconds: 300), () {
+    final q = state.searchQuery.trim();
+
+    if (q.isEmpty) {
+      searchPagingController.error = null;
+      searchPagingController.itemList = [];
+      // Optional: reset paging internal state
       searchPagingController.refresh();
-    });
-  }
+      return;
+    }
+
+    searchPagingController.refresh();
+    searchPagingController.notifyPageRequestListeners(_firstPageKey);
+  });
+}
+
 
   void clearSearch() {
-    _debounce?.cancel();
-    state = state.copyWith(searchQuery: "");
-    searchPagingController.itemList = [];
-    searchPagingController.error = null;
-  }
+  _debounce?.cancel();
+  state = state.copyWith(searchQuery: "");
+  searchPagingController.error = null;
+  searchPagingController.itemList = [];
+  searchPagingController.refresh();
+}
+
 
   // ------------------------
   // Orders + receive
@@ -168,13 +180,15 @@ class CustomerHomeViewModel extends Notifier<CustomerHomeState> {
   Future<void> _fetchSearchPage(int pageKey) async {
     final q = state.searchQuery.trim();
     if (q.isEmpty) {
-      // do nothing; UI shouldn't request pages when hidden
       return;
     }
 
     try {
-      await Future.delayed(const Duration(milliseconds: 400));
-      final newItems = _mockRestaurants(page: pageKey, filter: q);
+      final newItems = await CustomerRepo().getRestaurantListBySearch(
+        pageSize: 10,
+        pageKey: pageKey,
+        query: state.searchQuery,
+      );
 
       final isLastPage = newItems.length < _pageSize;
       if (isLastPage) {
