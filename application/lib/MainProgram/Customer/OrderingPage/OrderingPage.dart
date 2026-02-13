@@ -1,5 +1,6 @@
 // UserOrderHistory.dart
 // Requires: infinite_scroll_pagination
+import 'package:application/Handlers/Repository/OrderRepo.dart';
 import 'package:flutter/material.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 
@@ -27,7 +28,8 @@ class UserOrderHistory extends StatefulWidget {
     required int pageKey,
     required int pageSize,
     required List<String>? statuses,
-  }) fetchPage;
+  })
+  fetchPage;
 
   final int pageSize;
   final int firstPageKey;
@@ -60,7 +62,7 @@ class _UserOrderHistoryState extends State<UserOrderHistory>
       final res = await widget.fetchPage(
         pageKey: pageKey,
         pageSize: widget.pageSize,
-        statuses: null,
+        statuses: [],
       );
 
       final incoming = List<Order>.from(res["orders"] as List);
@@ -100,9 +102,11 @@ class _UserOrderHistoryState extends State<UserOrderHistory>
       backgroundColor: AppColors.white,
       appBar: AppBar(
         backgroundColor: AppColors.white,
-        elevation: 0.6,
         centerTitle: true,
-        title: Text("Orders", style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+        title: Text(
+          "Orders",
+          style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -110,7 +114,9 @@ class _UserOrderHistoryState extends State<UserOrderHistory>
           _pagingController.refresh();
         },
         child: CustomScrollView(
-          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
           slivers: [
             // Active Order
             SliverPadding(
@@ -123,12 +129,15 @@ class _UserOrderHistoryState extends State<UserOrderHistory>
                         children: [
                           Text(
                             "Active Order",
-                            style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w800),
+                            style: t.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                           const SizedBox(height: 10),
                           _ActiveOrderCard(
                             order: _activeOrder!,
-                            onTap: widget.onOpenActive ??
+                            onTap:
+                                widget.onOpenActive ??
                                 () {
                                   // default: do nothing (you choose logic)
                                 },
@@ -140,7 +149,12 @@ class _UserOrderHistoryState extends State<UserOrderHistory>
 
             // Past Orders title
             SliverPadding(
-              padding: EdgeInsets.fromLTRB(16, _activeOrder == null ? 16 : 8, 16, 10),
+              padding: EdgeInsets.fromLTRB(
+                16,
+                _activeOrder == null ? 16 : 8,
+                16,
+                10,
+              ),
               sliver: SliverToBoxAdapter(
                 child: Text(
                   "Past Orders",
@@ -155,7 +169,8 @@ class _UserOrderHistoryState extends State<UserOrderHistory>
               sliver: PagedSliverList<int, Order>(
                 pagingController: _pagingController,
                 builderDelegate: PagedChildBuilderDelegate<Order>(
-                  firstPageProgressIndicatorBuilder: (_) => const _UserHistoryShimmerList(),
+                  firstPageProgressIndicatorBuilder: (_) =>
+                      const _UserHistoryShimmerList(),
                   newPageProgressIndicatorBuilder: (_) => const Padding(
                     padding: EdgeInsets.symmetric(vertical: 16),
                     child: Center(child: CircularProgressIndicator()),
@@ -181,11 +196,13 @@ class _UserOrderHistoryState extends State<UserOrderHistory>
                         order: order,
                         onReorder: () async {
                           try {
-                            await (widget.onReorder?.call(order) ?? Future.value());
+                            await (widget.onReorder?.call(order) ??
+                                Future.value());
                           } catch (e) {
                             if (!mounted) return;
-                            ScaffoldMessenger.of(context)
-                                .showSnackBar(SnackBar(content: Text("Reorder failed: $e")));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Reorder failed: $e")),
+                            );
                           }
                         },
                       ),
@@ -204,10 +221,7 @@ class _UserOrderHistoryState extends State<UserOrderHistory>
 /// ---------------- Active Order UI ----------------
 
 class _ActiveOrderCard extends StatelessWidget {
-  const _ActiveOrderCard({
-    required this.order,
-    required this.onTap,
-  });
+  const _ActiveOrderCard({required this.order, required this.onTap});
 
   final Order order;
   final VoidCallback onTap;
@@ -220,16 +234,27 @@ class _ActiveOrderCard extends StatelessWidget {
     final status = _activeLabel(order.status);
     final step = _activeStepIndex(order.status);
 
-    final estArrival = order.createdAt.add(Duration(minutes: (order.expectedDuration / 2).round()));
-    final readyBy = order.createdAt.add(Duration(minutes: order.expectedDuration));
+    final estArrival = order.createdAt.add(
+      Duration(minutes: (order.expectedDuration / 2).round()),
+    );
+    final readyBy = order.createdAt.add(
+      Duration(minutes: order.expectedDuration),
+    );
 
     return Container(
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.primary.withOpacity(0.30), width: 2),
+        border: Border.all(
+          color: AppColors.primary.withOpacity(0.30),
+          width: 2,
+        ),
         boxShadow: const [
-          BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6)),
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 12,
+            offset: Offset(0, 6),
+          ),
         ],
       ),
       child: InkWell(
@@ -246,7 +271,9 @@ class _ActiveOrderCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       title,
-                      style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                      style: t.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -295,11 +322,7 @@ class _ActiveOrderCard extends StatelessWidget {
 }
 
 class _KeyVal extends StatelessWidget {
-  const _KeyVal({
-    required this.k,
-    required this.v,
-    this.alignEnd = false,
-  });
+  const _KeyVal({required this.k, required this.v, this.alignEnd = false});
 
   final String k;
   final String v;
@@ -309,9 +332,14 @@ class _KeyVal extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     return Column(
-      crossAxisAlignment: alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
-        Text(k, style: t.bodySmall?.copyWith(color: Colors.black.withOpacity(0.55))),
+        Text(
+          k,
+          style: t.bodySmall?.copyWith(color: Colors.black.withOpacity(0.55)),
+        ),
         const SizedBox(height: 2),
         Text(v, style: t.bodySmall?.copyWith(fontWeight: FontWeight.w800)),
       ],
@@ -371,19 +399,31 @@ class _StepLine extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: Text("Ordered",
-                  textAlign: TextAlign.center,
-                  style: t.labelSmall?.copyWith(color: Colors.black.withOpacity(0.6))),
+              child: Text(
+                "Ordered",
+                textAlign: TextAlign.center,
+                style: t.labelSmall?.copyWith(
+                  color: Colors.black.withOpacity(0.6),
+                ),
+              ),
             ),
             Expanded(
-              child: Text("Preparing",
-                  textAlign: TextAlign.center,
-                  style: t.labelSmall?.copyWith(color: Colors.black.withOpacity(0.6))),
+              child: Text(
+                "Preparing",
+                textAlign: TextAlign.center,
+                style: t.labelSmall?.copyWith(
+                  color: Colors.black.withOpacity(0.6),
+                ),
+              ),
             ),
             Expanded(
-              child: Text("Ready",
-                  textAlign: TextAlign.center,
-                  style: t.labelSmall?.copyWith(color: Colors.black.withOpacity(0.6))),
+              child: Text(
+                "Ready",
+                textAlign: TextAlign.center,
+                style: t.labelSmall?.copyWith(
+                  color: Colors.black.withOpacity(0.6),
+                ),
+              ),
             ),
           ],
         ),
@@ -394,23 +434,27 @@ class _StepLine extends StatelessWidget {
 
 /// ---------------- Past Orders UI ----------------
 
-class _PastOrderCard extends StatelessWidget {
-  const _PastOrderCard({
-    required this.order,
-    required this.onReorder,
-  });
+class _PastOrderCard extends StatefulWidget {
+  _PastOrderCard({required this.order, required this.onReorder});
 
-  final Order order;
+  Order order;
   final VoidCallback onReorder;
+
+  @override
+  State<_PastOrderCard> createState() => _PastOrderCardState();
+}
+
+class _PastOrderCardState extends State<_PastOrderCard> {
+  int? selectedValue;
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
 
-    final title = order.restaurantName ?? "Restaurant";
-    final st = _pastStatus(order);
-    final dateLine = _formatDateTimeLine(context, order.createdAt);
-    final itemsLine = _compactItemsLine(order.items);
+    final title = widget.order.restaurantName ?? "Restaurant";
+    final st = _pastStatus(widget.order);
+    final dateLine = _formatDateTimeLine(context, widget.order.createdAt);
+    final itemsLine = _compactItemsLine(widget.order.items);
 
     return Container(
       decoration: BoxDecoration(
@@ -418,7 +462,11 @@ class _PastOrderCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFEAEAEA)),
         boxShadow: const [
-          BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6)),
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 12,
+            offset: Offset(0, 6),
+          ),
         ],
       ),
       child: Padding(
@@ -441,42 +489,100 @@ class _PastOrderCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Text(dateLine, style: t.bodySmall?.copyWith(color: Colors.black.withOpacity(0.55))),
+            Text(
+              dateLine,
+              style: t.bodySmall?.copyWith(
+                color: Colors.black.withOpacity(0.55),
+              ),
+            ),
             const SizedBox(height: 8),
-            Text(itemsLine, style: t.bodySmall?.copyWith(color: Colors.black.withOpacity(0.70))),
+            Text(
+              itemsLine,
+              style: t.bodySmall?.copyWith(
+                color: Colors.black.withOpacity(0.70),
+              ),
+            ),
             const SizedBox(height: 10),
 
             Row(
               children: [
                 Text(
-                  _formatMoney(order.total),
+                  _formatMoney(widget.order.total),
                   style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w900),
                 ),
                 const Spacer(),
-                _TapPill(
-                  text: "Reorder",
-                  onTap: onReorder,
-                ),
+                _TapPill(text: "Reorder", onTap: widget.onReorder),
               ],
             ),
 
             const SizedBox(height: 10),
-            Divider(height: 1, thickness: 1, color: Colors.black.withOpacity(0.07)),
+            Divider(
+              height: 1,
+              thickness: 1,
+              color: Colors.black.withOpacity(0.07),
+            ),
             const SizedBox(height: 8),
 
             // rating (lightweight placeholder)
             Row(
+              mainAxisAlignment: MainAxisAlignment.start,
               children: [
-                Text("Eligible to rate", style: t.bodySmall?.copyWith(color: Colors.black.withOpacity(0.55))),
+                Text(
+                  widget.order.rating == null ? widget.order.status != OrderStatus.recieved ? 
+                  "You can only rate the completed orders" 
+                  : "" : "",
+                  style: t.bodySmall?.copyWith(
+                    color: Colors.black.withOpacity(0.55),
+                  ),
+                ),
+                if(widget.order.status == OrderStatus.recieved) ... [
                 const Spacer(),
                 Row(
                   children: List.generate(
                     5,
-                    (i) => Icon(Icons.star_border_rounded, size: 18, color: AppColors.primary.withOpacity(0.9)),
+                    (i) => widget.order.rating != null
+                        ? Icon(
+                            i <= (widget.order.rating ?? -1)
+                                  ? Icons.star
+                                  : Icons.star_border_rounded,
+                            size: 18,
+                            color: AppColors.coal.withOpacity(0.9),
+                          )
+                        : GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                selectedValue = i;
+                              });
+                            },
+                            child: Icon(
+                              i <= (selectedValue ?? -1)
+                                  ? Icons.star
+                                  : Icons.star_border_rounded,
+                              size: 18,
+                              color: AppColors.primary.withOpacity(0.9),
+                            ),
+                          ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text("Rate", style: t.bodySmall?.copyWith(color: AppColors.primary, fontWeight: FontWeight.w800)),
+                GestureDetector(
+                  onTap: () {
+                    if (selectedValue == null) return;
+                    widget.order.rating = selectedValue;
+                    OrderRepo().rateOrder(
+                      orderId: widget.order.id,
+                      rate: selectedValue!,
+                    );
+                    setState(() {});
+                  },
+                  child: Text(
+                    "Rate",
+                    style: t.bodySmall?.copyWith(
+                      color: widget.order.rating == null ? AppColors.primary : AppColors.coal,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),]
               ],
             ),
           ],
@@ -507,7 +613,13 @@ class _TapPill extends StatelessWidget {
           children: [
             const Icon(Icons.replay_rounded, size: 18, color: AppColors.white),
             const SizedBox(width: 8),
-            Text(text, style: t.labelLarge?.copyWith(color: AppColors.white, fontWeight: FontWeight.w800)),
+            Text(
+              text,
+              style: t.labelLarge?.copyWith(
+                color: AppColors.white,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ],
         ),
       ),
@@ -557,7 +669,9 @@ _PastStatus _pastStatus(Order o) {
 }
 
 bool _isActiveStatus(OrderStatus s) {
-  return s == OrderStatus.pending || s == OrderStatus.accepted || s == OrderStatus.done;
+  return s == OrderStatus.pending ||
+      s == OrderStatus.accepted ||
+      s == OrderStatus.done;
 }
 
 int _activeStepIndex(OrderStatus s) {
@@ -591,21 +705,27 @@ String _activeLabel(OrderStatus s) {
 String _compactItemsLine(List<ItemOrder> items) {
   if (items.isEmpty) return "—";
   final totalQty = items.fold<int>(0, (s, it) => s + it.quantity);
-  final names = items.take(3).map((e) => "${e.itemName} x${e.quantity}").join(", ");
+  final names = items
+      .take(3)
+      .map((e) => "${e.itemName} x${e.quantity}")
+      .join(", ");
   final more = items.length > 3 ? " +" : "";
   return "$totalQty items: $names$more";
 }
 
 String _formatHm(BuildContext context, DateTime dt) {
-  return MaterialLocalizations.of(context)
-      .formatTimeOfDay(TimeOfDay.fromDateTime(dt));
+  return MaterialLocalizations.of(
+    context,
+  ).formatTimeOfDay(TimeOfDay.fromDateTime(dt));
 }
 
 String _formatDateTimeLine(BuildContext context, DateTime dt) {
   // "2023-10-26, 13:45"
-  final d = "${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}";
-  final tm = MaterialLocalizations.of(context)
-      .formatTimeOfDay(TimeOfDay.fromDateTime(dt), alwaysUse24HourFormat: true);
+  final d =
+      "${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}";
+  final tm = MaterialLocalizations.of(
+    context,
+  ).formatTimeOfDay(TimeOfDay.fromDateTime(dt), alwaysUse24HourFormat: true);
   return "$d, $tm";
 }
 
@@ -645,7 +765,11 @@ class _PastCardShimmer extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFEAEAEA)),
         boxShadow: const [
-          BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6)),
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 12,
+            offset: Offset(0, 6),
+          ),
         ],
       ),
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
@@ -696,13 +820,17 @@ class _ShimmerBlock extends StatefulWidget {
   State<_ShimmerBlock> createState() => _ShimmerBlockState();
 }
 
-class _ShimmerBlockState extends State<_ShimmerBlock> with SingleTickerProviderStateMixin {
+class _ShimmerBlockState extends State<_ShimmerBlock>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _c;
 
   @override
   void initState() {
     super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
+    _c = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
   }
 
   @override
@@ -735,7 +863,11 @@ class _ShimmerBlockState extends State<_ShimmerBlock> with SingleTickerProviderS
                       gradient: LinearGradient(
                         begin: Alignment.centerLeft,
                         end: Alignment.centerRight,
-                        colors: [Color(0x00FFFFFF), Color(0x55FFFFFF), Color(0x00FFFFFF)],
+                        colors: [
+                          Color(0x00FFFFFF),
+                          Color(0x55FFFFFF),
+                          Color(0x00FFFFFF),
+                        ],
                         stops: [0.25, 0.5, 0.75],
                       ),
                     ),
@@ -778,7 +910,9 @@ class _ErrorState extends StatelessWidget {
             const SizedBox(height: 14),
             ElevatedButton(
               onPressed: onRetry,
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+              ),
               child: const Text("Retry"),
             ),
           ],

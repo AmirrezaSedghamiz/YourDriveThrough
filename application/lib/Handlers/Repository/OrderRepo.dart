@@ -28,12 +28,17 @@ class OrderRepo {
   }
 
   Future<dynamic> _getOrderListHandler(Response response) async {
+    print(response.data);
+    print(response.statusCode);
     if (response.statusCode == 200) {
       List<Order> orders = [];
       for (var i in response.data["results"]) {
         orders.add(Order.fromMap(i));
       }
-      return {"orders" :orders, "isLastPage" : !(response.data["pagination"]["has_next"])};
+      return {
+        "orders": orders,
+        "isLastPage": !(response.data["pagination"]["has_next"]),
+      };
     } else if (response.statusCode == 400) {
       return ConnectionStates.BadRequest;
     } else if (response.statusCode == 401) {
@@ -68,7 +73,8 @@ class OrderRepo {
       "statuses": statuses,
     });
   }
-//////////////////////////////////////////////////////////////////
+
+  //////////////////////////////////////////////////////////////////
   Future<Response> _getAllCategoriesRequest(Map<String, dynamic> kwargs) async {
     Options options = Options(
       followRedirects: false,
@@ -77,10 +83,7 @@ class OrderRepo {
       },
       headers: {'Authorization': await TokenStore.getAccessToken()},
     );
-    return await HttpClient.instance.post(
-      'categories/',
-      options: options,
-      );
+    return await HttpClient.instance.post('categories/', options: options);
   }
 
   Future<dynamic> _getAllCategoriesHandler(Response response) async {
@@ -89,7 +92,10 @@ class OrderRepo {
       for (var i in response.data["results"]) {
         orders.add(Order.fromMap(i));
       }
-      return {"orders" :orders, "isLastPage" : !(response.data["pagination"]["has_next"])};
+      return {
+        "orders": orders,
+        "isLastPage": !(response.data["pagination"]["has_next"]),
+      };
     } else if (response.statusCode == 400) {
       return ConnectionStates.BadRequest;
     } else if (response.statusCode == 401) {
@@ -109,8 +115,14 @@ class OrderRepo {
     }
   }
 
-  Future<dynamic> _getAllCategoriesKwargBuilder(Map<String, dynamic> kwargs) async {
-    return handleErrors(kwargs, _getAllCategoriesRequest, _getAllCategoriesHandler);
+  Future<dynamic> _getAllCategoriesKwargBuilder(
+    Map<String, dynamic> kwargs,
+  ) async {
+    return handleErrors(
+      kwargs,
+      _getAllCategoriesRequest,
+      _getAllCategoriesHandler,
+    );
   }
 
   Future<dynamic> getAllCategories({
@@ -133,11 +145,8 @@ class OrderRepo {
     return await HttpClient.instance.post(
       'orders/status/update/',
       options: options,
-      data:{
-        'new_status': kwargs['new_status'],
-        'order_id': kwargs['id']
-      }
-      );
+      data: {'new_status': kwargs['new_status'], 'order_id': kwargs['id']},
+    );
   }
 
   Future<dynamic> _updateStatusHandler(Response response) async {
@@ -170,9 +179,53 @@ class OrderRepo {
     required String newStatus,
     required int orderId,
   }) {
-    return _updateStatusKwargBuilder({
-      'id' : orderId,
-      'new_status': newStatus
-    });
+    return _updateStatusKwargBuilder({'id': orderId, 'new_status': newStatus});
   }
+  ///////////////////////////////////////////////
+
+  Future<Response> _rateOrderRequest(Map<String, dynamic> kwargs) async {
+    Options options = Options(
+      followRedirects: false,
+      validateStatus: (status) {
+        return status! < 600;
+      },
+      headers: {'Authorization': await TokenStore.getAccessToken()},
+    );
+    return await HttpClient.instance.post(
+      'me/ratings/',
+      options: options,
+      data: {'number': kwargs['rate'], 'order': kwargs['id']},
+    );
+  }
+
+  Future<dynamic> _rateOrderHandler(Response response) async {
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return ConnectionStates.Success;
+    } else if (response.statusCode == 400) {
+      return ConnectionStates.BadRequest;
+    } else if (response.statusCode == 401) {
+      return ConnectionStates.Unauthorized;
+    } else if (response.statusCode == 404) {
+      return ConnectionStates.TokenFailure;
+    } else {
+      if (response.statusCode == 500) {
+        return ConnectionStates.DataBase;
+      } else if (response.statusCode == 502) {
+        return ConnectionStates.BadGateWay;
+      } else if (response.statusCode == 504) {
+        return ConnectionStates.GateWayTimeOut;
+      } else {
+        return ConnectionStates.Unexpected;
+      }
+    }
+  }
+
+  Future<dynamic> _rateOrderKwargBuilder(Map<String, dynamic> kwargs) async {
+    return handleErrors(kwargs, _rateOrderRequest, _rateOrderHandler);
+  }
+
+  Future<dynamic> rateOrder({required int orderId, required int rate}) {
+    return _rateOrderKwargBuilder({'id': orderId, 'rate': rate});
+  }
+  //////////////////////////////////////////////////////
 }
