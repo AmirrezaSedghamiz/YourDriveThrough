@@ -298,4 +298,58 @@ class OrderRepo {
       'items': item,
     });
   }
+  ////////////////////////////////////////////////////////
+  
+  Future<Response> _reOrderRequest(Map<String, dynamic> kwargs) async {
+    Options options = Options(
+      followRedirects: false,
+      validateStatus: (status) {
+        return status! < 600;
+      },
+      headers: {'Authorization': await TokenStore.getAccessToken()},
+    );
+    return await HttpClient.instance.post(
+      'me/orders/reorder/',
+      options: options,
+      data: {
+          'order_id': kwargs['id'],
+          'longitude': kwargs['longitude'],
+          'latitude': kwargs['latitude'],
+      },
+    );
+  }
+
+  Future<dynamic> _reOrderHandler(Response response) async {
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return Order.fromMap(response.data);
+    } else if (response.statusCode == 400) {
+      return ConnectionStates.BadRequest;
+    } else if (response.statusCode == 401) {
+      return ConnectionStates.Unauthorized;
+    } else if (response.statusCode == 404) {
+      return ConnectionStates.TokenFailure;
+    } else {
+      if (response.statusCode == 500) {
+        return ConnectionStates.DataBase;
+      } else if (response.statusCode == 502) {
+        return ConnectionStates.BadGateWay;
+      } else if (response.statusCode == 504) {
+        return ConnectionStates.GateWayTimeOut;
+      } else {
+        return ConnectionStates.Unexpected;
+      }
+    }
+  }
+
+  Future<dynamic> _reOrderKwargBuilder(Map<String, dynamic> kwargs) async {
+    return handleErrors(kwargs, _reOrderRequest, _reOrderHandler);
+  }
+
+  Future<dynamic> reOrder({required int orderId, required num latitude,
+    required num longitude,}) {
+    return _reOrderKwargBuilder({
+      'id': orderId,
+    'longitude': longitude,
+      'latitude': latitude,});
+  }
 }
