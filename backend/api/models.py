@@ -85,17 +85,17 @@ class Report(models.Model):
 
 
 class Rating(models.Model):
-    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE)
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+    order = models.OneToOneField(Order, on_delete=models.CASCADE)
     number = models.IntegerField()
 
     class Meta:
-        unique_together = ("restaurant", "customer")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["order"],
+                name="unique_rating_per_order"
+            )
+        ]
 
-
-class Review(models.Model):
-    rating = models.OneToOneField(Rating, on_delete=models.CASCADE)
-    describtion = models.CharField(max_length=1024)
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE)

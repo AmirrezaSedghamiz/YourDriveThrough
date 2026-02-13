@@ -1,8 +1,9 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import Customer, Restaurant, Category, MenuItem, Order, OrderItem, Rating, Review
+from .models import Customer, Restaurant, Category, MenuItem, Order, OrderItem, Rating
 from .exceptions import RoleNotFound
 
 
@@ -303,64 +304,43 @@ class MyOrdersFilterSerializer(serializers.Serializer):
 
 
 class RatingCreateSerializer(serializers.Serializer):
-    restaurant = serializers.IntegerField()
+    order = serializers.IntegerField()
     number = serializers.IntegerField(min_value=1, max_value=5)
-    description = serializers.CharField(
-        max_length=1024,
-        required=False,
-        allow_blank=True
-    )
-
-    def validate_restaurant(self, value):
-        if not Restaurant.objects.filter(id=value).exists():
-            raise serializers.ValidationError("Restaurant does not exist.")
-        return value
 
     def validate(self, data):
-        customer = self.context["request"].user.customer
-        restaurant_id = data["restaurant"]
+        request = self.context["request"]
+        order_id = data["order"]
 
-        if Rating.objects.filter(
-            customer=customer,
-            restaurant_id=restaurant_id
-        ).exists():
-            raise serializers.ValidationError(
-                "You have already rated this restaurant."
-            )
+        try:
+            order = Order.objects.get(id=order_id)
+        except Order.DoesNotExist:
+            raise serializers.ValidationError("Order does not exist.")
 
+        if not hasattr(request.user, "customer") or order.customer != request.user.customer:
+            raise serializers.ValidationError("You can only rate your own orders.")
+
+        if hasattr(order, "rating"):
+            raise serializers.ValidationError("This order has already been rated.")
+
+        if order.status not in ["done", "recieved"]:
+            raise serializers.ValidationError("You can only rate completed orders.")
+
+        data["order_obj"] = order
         return data
 
     def create(self, validated_data):
-        customer = self.context["request"].user.customer
-        restaurant = Restaurant.objects.get(id=validated_data["restaurant"])
+        order = validated_data["order_obj"]
 
-        rating = Rating.objects.create(
-            restaurant=restaurant,
-            customer=customer,
+        return Rating.objects.create(
+            order=order,
             number=validated_data["number"]
         )
 
-        description = validated_data.get("description")
-        if description:
-            Review.objects.create(
-                rating=rating,
-                describtion=description
-            )
-
-        return rating
-
 
 class RatingSerializer(serializers.ModelSerializer):
-    review = serializers.SerializerMethodField()
-
     class Meta:
         model = Rating
-        fields = ("id", "number", "restaurant", "review")
-
-    def get_review(self, obj):
-        if hasattr(obj, "review"):
-            return obj.review.describtion
-        return None
+        fields = ("id", "order", "number")
 
 
 class RestaurantMenuRequestSerializer(serializers.Serializer):
