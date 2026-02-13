@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import LoginView, MeAuthView, MeMenuSyncView, MeView, OrderStatusUpdateView
+from .views import CustomerMeView, CustomerUpdateView, LoginView, MeAuthView, MeMenuSyncView, MeView, OrderStatusUpdateView
 from .views import SignupView
 from .views import RestaurantMeUpdateView
 from .views import GetClosestRestaurantsView
@@ -30,6 +30,8 @@ urlpatterns = [
     path("me/", MeView.as_view(), name="me"),
     path("me/auth/", MeAuthView.as_view(), name="me_auth"),
     path("me/restaurant/", RestaurantMeUpdateView.as_view(), name="restaurant_me_update"),
+    path("me/customer/profile", CustomerMeView.as_view(), "get_my_profile"),
+    path("me/customer/profile/update", CustomerUpdateView.as_view() , "update_my_profile"),
     path("me/orders/", MyOrdersView.as_view(), name="my_orders"),
     path("me/orders/create/", OrderCreateView.as_view(), name="create_order"),
     path("me/orders/reorder/", ReorderView.as_view(), name = "reorder"),
