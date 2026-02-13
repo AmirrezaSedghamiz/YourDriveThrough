@@ -274,12 +274,12 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
         expected_arrival_time = travel_duration
 
-        validated_data = validated_data.copy()
-        validated_data.pop("restaurant", None)
-        validated_data.pop("total", None)
-        validated_data.pop("start", None)
-        validated_data.pop("expected_duration", None)
-        validated_data.pop("expected_arrival_time", None)
+        # validated_data = validated_data.copy()
+        # validated_data.pop("restaurant", None)
+        # validated_data.pop("total", None)
+        # validated_data.pop("start", None)
+        # validated_data.pop("expected_duration", None)
+        # validated_data.pop("expected_arrival_time", None)
 
         order = Order.objects.create(
             restaurant=restaurant,
@@ -287,7 +287,6 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             expected_arrival_time=expected_arrival_time,
             total=total,
             start=timezone.now(),
-            **validated_data,
         )
 
         for item in items_data:
