@@ -19,6 +19,7 @@ class Order {
   int expectedDuration;
   num total;
   List<ItemOrder> items;
+  num? arrivalTime;
 
   Order({
     required this.id,
@@ -27,6 +28,7 @@ class Order {
     this.customerPhone,
     this.restaurantName,
     this.rating,
+    this.arrivalTime,
     required this.status,
     required this.createdAt,
     required this.expectedDuration,
@@ -73,10 +75,11 @@ class Order {
       createdAt: _date(map['start'] ?? map['created_at']),
       expectedDuration: _int(map['expected_duration']),
       total: _num(map['total']),
-      rating: map['rating'],
+      rating: map['rating']?['number'],
       items: (map['items'] as List? ?? [])
           .map((e) => ItemOrder.fromMap(e))
           .toList(),
+      arrivalTime: map['expected_arrival_time'],
     );
   }
 

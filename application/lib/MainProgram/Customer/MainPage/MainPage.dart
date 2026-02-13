@@ -89,8 +89,10 @@ class _CustomerHomePageState extends ConsumerState<CustomerHomePage> {
                         r: r,
                         onSelect: () {
                           var route = AppRoutes.fade(
-                            RestaurantMenu(restaurantId: r.id ?? -1,
-                            restaurantName: r.name,),
+                            RestaurantMenu(
+                              restaurantId: r.id ?? -1,
+                              restaurantName: r.name,
+                            ),
                           );
                           NavigationService.push(route);
                         },
@@ -145,8 +147,10 @@ class _CustomerHomePageState extends ConsumerState<CustomerHomePage> {
                       r: r,
                       onSelect: () {
                         var route = AppRoutes.fade(
-                          RestaurantMenu(restaurantId: r.id ?? -1 , 
-                          restaurantName: r.name,),
+                          RestaurantMenu(
+                            restaurantId: r.id ?? -1,
+                            restaurantName: r.name,
+                          ),
                         );
                         NavigationService.push(route);
                       },

@@ -39,7 +39,6 @@ class ItemOrder {
   }
 
   factory ItemOrder.fromMap(Map<String, dynamic> map) {
-    print(map['special']);
     return ItemOrder(
       id: _int(map['id']),
       itemId: _int(map['item'], fallback: 0),

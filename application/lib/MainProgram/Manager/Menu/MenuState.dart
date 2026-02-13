@@ -22,8 +22,8 @@ class RestaurantSettingsState {
   String? errorMessage;
 
   RestaurantSettingsState({
-    this.restaurantName = "FastBites Kitchen",
-    this.currentAddress = "123 Main Street, Anytown, CA 90210",
+    required this.restaurantName,
+    required this.currentAddress,
     this.geofenceRadius = 500,
     this.restaurantImageFile,
     this.restaurantImageUrl,

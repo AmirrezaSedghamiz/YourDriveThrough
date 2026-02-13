@@ -8,6 +8,7 @@ class RestaurantInfo {
   num latitude;
   num longitude;
   num? duration;
+
   String? image;
   bool profileComplete;
   num? rating;
@@ -62,6 +63,7 @@ class RestaurantInfo {
       rating: _parseNum(map['average_rating']),
       isOpen: map['is_open'],
       duration: map['duration_seconds'],
+      
     );
   }
 
