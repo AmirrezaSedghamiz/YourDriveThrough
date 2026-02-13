@@ -31,6 +31,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 class Customer(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
+    image = models.ImageField(default=None, null=True, blank=True)
 
 
 class Restaurant(models.Model):
