@@ -3,7 +3,7 @@ from django.contrib.auth import authenticate
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import Customer, Restaurant, Category, MenuItem, Order, OrderItem, Rating
+from .models import Customer, CustomerReport, Restaurant, Category, MenuItem, Order, OrderItem, Rating, RestaurantReport
 from .exceptions import RoleNotFound
 from django.utils import timezone
 from django.conf import settings
@@ -452,4 +452,29 @@ class CustomerUpdateSerializer(serializers.Serializer):
         user = self.context["request"].user
         if User.objects.exclude(id=user.id).filter(phone=value).exists():
             raise serializers.ValidationError("This phone is already in use.")
+        return value
+
+
+
+class CustomerReportSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomerReport
+        fields = ["id", "restaurant", "description", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
+    def validate_restaurant(self, value):
+        if not Restaurant.objects.filter(id=value.id).exists():
+            raise serializers.ValidationError("Restaurant does not exist.")
+        return value
+
+
+class RestaurantReportSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RestaurantReport
+        fields = ["id", "customer", "description", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
+    def validate_customer(self, value):
+        if not Customer.objects.filter(id=value.id).exists():
+            raise serializers.ValidationError("Customer does not exist.")
         return value

@@ -78,10 +78,18 @@ class MenuItem(models.Model):
 
 
 
-class Report(models.Model):
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE)
-    describtion = models.CharField(max_length=1024)
+class CustomerReport(models.Model):
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="reports")
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name="reported_by_customers")
+    description = models.CharField(max_length=1024)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class RestaurantReport(models.Model):
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name="reports")
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="reported_by_restaurants")
+    description = models.CharField(max_length=1024)
+    created_at = models.DateTimeField(auto_now_add=True)
 
 
 class Rating(models.Model):

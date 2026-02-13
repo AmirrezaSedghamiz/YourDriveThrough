@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import CustomerMeView, CustomerUpdateView, LoginView, MeAuthView, MeMenuSyncView, MeView, OrderStatusUpdateView
+from .views import CustomerMeView, CustomerReportCreateView, CustomerUpdateView, LoginView, MeAuthView, MeMenuSyncView, MeView, OrderStatusUpdateView, RestaurantReportCreateView
 from .views import SignupView
 from .views import RestaurantMeUpdateView
 from .views import GetClosestRestaurantsView
@@ -38,6 +38,8 @@ urlpatterns = [
     path("me/orders/update_status/", OrderStatusUpdateView.as_view(), name="update_order_status"),
     path("me/ratings/rate/", LeaveRatingView.as_view(), name="create_rating"),
     path("me/menu/sync/", MeMenuSyncView.as_view(), name="me_menu_sync"),
+    path("me/report/restaurant/", CustomerReportCreateView.as_view(), name="report_restaurant"),
+    path("me/report/customer/", RestaurantReportCreateView.as_view(), name="report_customer"),
 
     # Deprecated endpoint for handling current user (to be removed in the future).
     path("restaurant/complete_profile/", RestaurantMeUpdateView.as_view(), name="restaurant_complete_profile"),

@@ -15,7 +15,7 @@ from django.core.paginator import Paginator
 from django.conf import settings
 from drf_spectacular.utils import extend_schema
 from collections import defaultdict
-from .serializers import CustomerSerializer, CustomerUpdateSerializer, LoginSerializer, RatingCreateSerializer, RatingSerializer, MenuSyncSerializer, RestaurantUpdateSerializer, UserSerializer
+from .serializers import CustomerReportSerializer, CustomerSerializer, CustomerUpdateSerializer, LoginSerializer, RatingCreateSerializer, RatingSerializer, MenuSyncSerializer, RestaurantReportSerializer, RestaurantUpdateSerializer, UserSerializer
 from .serializers import SignupSerializer
 from .serializers import RestaurantSerializer
 from .serializers import ClosestRestaurantsSerializer
@@ -274,7 +274,9 @@ class SaveMenuItemView(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
+@extend_schema(
+    request = RestaurantMenuRequestSerializer(many=False)
+)
 class RestaurantMenuGroupedView(APIView):
     permission_classes = []
 
@@ -317,6 +319,7 @@ class RestaurantMenuGroupedView(APIView):
 
             response_data.append({
                 "id": category_id,
+                "name": category_name,
                 "category": category_name,
                 "items": MenuItemSerializer(category_items, many=True).data,
             })
@@ -555,6 +558,9 @@ class OrderStatusUpdateView(APIView):
         )
 
 
+@extend_schema(
+    request=RestaurantSearchSerializer(many=False)
+)
 class RestaurantSearchView(APIView):
     permission_classes = []
 
@@ -646,6 +652,9 @@ class OrderRatingView(APIView):
         )
 
 
+@extend_schema(
+    request=MenuSyncSerializer(many = False)
+)
 class MeMenuSyncView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -1021,3 +1030,33 @@ class CustomerUpdateView(APIView):
             "phone": request.user.phone,
             "image": customer.image.url if customer.image else None,
         }, status=status.HTTP_200_OK)
+
+
+class CustomerReportCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if not hasattr(request.user, "customer"):
+            raise PermissionDenied("Only customers can report restaurants.")
+
+        serializer = CustomerReportSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(customer=request.user.customer)
+
+        return Response({"message": "Report submitted successfully", "report": serializer.data},
+                        status=status.HTTP_201_CREATED)
+
+
+class RestaurantReportCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if not hasattr(request.user, "restaurant"):
+            raise PermissionDenied("Only restaurants can report customers.")
+
+        serializer = RestaurantReportSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(restaurant=request.user.restaurant)
+
+        return Response({"message": "Report submitted successfully", "report": serializer.data},
+                        status=status.HTTP_201_CREATED)
