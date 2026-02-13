@@ -63,8 +63,7 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       navigatorKey: NavigationService.navigatorKey,
       theme: AppTheme.lightTheme,
-      home: CustomerHomePage(),
-      // home: SplashScr1een(),
+      home: SplashScreen(),
     );
   }
 }

@@ -12,6 +12,8 @@ class Order {
   String? customerPhone;
   String? restaurantName;
 
+  int? rating;
+
   OrderStatus status;
   DateTime createdAt;
   int expectedDuration;
@@ -24,6 +26,7 @@ class Order {
     this.restaurantId,
     this.customerPhone,
     this.restaurantName,
+    this.rating,
     required this.status,
     required this.createdAt,
     required this.expectedDuration,
@@ -67,15 +70,14 @@ class Order {
       restaurantId: _int(map['restaurant_id'], fallback: 0),
       customerPhone: _str(map['customer_phone']),
       restaurantName: _str(map['restaurant_name']),
-      status: OrderStatusParsing.from(
-        map['status']?.toString() ?? 'failed',
-      ),
+      status: OrderStatusParsing.from(map['status']?.toString() ?? 'failed'),
       createdAt: _date(map['start'] ?? map['created_at']),
       expectedDuration: _int(map['expected_duration']),
       total: _num(map['total']),
       items: (map['items'] as List? ?? [])
           .map((e) => ItemOrder.fromMap(e as Map<String, dynamic>))
           .toList(),
+      rating: map['rating']
     );
   }
 
@@ -95,8 +97,7 @@ class Order {
   }
 
   String toJson() => json.encode(toMap());
-  factory Order.fromJson(String source) =>
-      Order.fromMap(json.decode(source));
+  factory Order.fromJson(String source) => Order.fromMap(json.decode(source));
 
   copyWith({required OrderStatus status}) {}
 }
