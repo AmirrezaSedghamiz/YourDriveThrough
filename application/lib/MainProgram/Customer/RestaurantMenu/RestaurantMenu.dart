@@ -10,8 +10,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'RestaurantMenuViewModel.dart';
 
 class RestaurantMenu extends ConsumerStatefulWidget {
-  const RestaurantMenu({super.key, required this.restaurantId});
+  const RestaurantMenu({super.key, required this.restaurantId, required this.restaurantName});
   final int restaurantId;
+  final String restaurantName;
 
   @override
   ConsumerState<RestaurantMenu> createState() => _RestaurantMenuState();
@@ -24,7 +25,7 @@ class _RestaurantMenuState extends ConsumerState<RestaurantMenu> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref
           .read(restaurantMenuViewModelProvider.notifier)
-          .init(widget.restaurantId);
+          .init(widget.restaurantId, widget.restaurantName);
     });
   }
 
@@ -34,7 +35,7 @@ class _RestaurantMenuState extends ConsumerState<RestaurantMenu> {
     if (oldWidget.restaurantId != widget.restaurantId) {
       ref
           .read(restaurantMenuViewModelProvider.notifier)
-          .init(widget.restaurantId);
+          .init(widget.restaurantId, widget.restaurantName);
     }
   }
 
@@ -878,37 +879,47 @@ class _ErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text("Couldn’t load menu", style: t.titleMedium),
-            const SizedBox(height: 8),
-            Text(message, style: t.bodyMedium, textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            GestureDetector(
-              onTap: onRetry,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  "Retry",
-                  style: t.labelLarge?.copyWith(
-                    color: AppColors.white,
-                    fontWeight: FontWeight.w800,
+    return Scaffold(
+      appBar: AppAppBar(
+        leading: GestureDetector(
+          onTap: () {
+            NavigationService.pop();
+          },
+          child: Icon(Icons.chevron_left),
+        ),
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text("Couldn’t load menu", style: t.titleMedium),
+              const SizedBox(height: 8),
+              Text(message, style: t.bodyMedium, textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: onRetry,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    "Retry",
+                    style: t.labelLarge?.copyWith(
+                      color: AppColors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -920,15 +931,25 @@ class _MenuShimmer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.white,
-      child: ListView.builder(
-        physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-        itemCount: 6,
-        itemBuilder: (_, i) => const Padding(
-          padding: EdgeInsets.only(bottom: 12),
-          child: _MenuRowShimmer(),
+    return Scaffold(
+      appBar: AppAppBar(
+        leading: GestureDetector(
+          onTap: () {
+            NavigationService.pop();
+          },
+          child: Icon(Icons.chevron_left),
+        ),
+      ),
+      body: Container(
+        color: AppColors.white,
+        child: ListView.builder(
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+          itemCount: 6,
+          itemBuilder: (_, i) => const Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: _MenuRowShimmer(),
+          ),
         ),
       ),
     );

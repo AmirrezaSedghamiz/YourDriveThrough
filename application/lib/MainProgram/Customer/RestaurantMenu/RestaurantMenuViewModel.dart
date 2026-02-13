@@ -1,8 +1,10 @@
 import 'dart:math';
+import 'package:application/GlobalWidgets/InternetManager/ConnectionStates.dart';
+import 'package:application/Handlers/Repository/ManagerRepo.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:application/SourceDesign/Models/Category.dart';
 import 'package:application/SourceDesign/Models/Item.dart';
-
+import 'dart:math' as math;
 import 'RestaurantMenuState.dart';
 
 class RestaurantMenuViewModel extends Notifier<RestaurantMenuState> {
@@ -14,11 +16,14 @@ class RestaurantMenuViewModel extends Notifier<RestaurantMenuState> {
   }
 
   /// Call this ONCE from the page's initState/postFrame
-  Future<void> init(int restaurantId) async {
-    if (_initialized && state.restaurantId == restaurantId) return;
+  Future<void> init(int restaurantId, String restaurantName) async {
+    if (_initialized &&
+        state.restaurantId == restaurantId &&
+        state.restaurantName == restaurantName)
+      return;
     _initialized = true;
 
-    state = state.copyWith(restaurantId: restaurantId);
+    state = state.copyWith(restaurantId: restaurantId , restaurantName: restaurantName);
     await _load();
   }
 
@@ -29,18 +34,28 @@ class RestaurantMenuViewModel extends Notifier<RestaurantMenuState> {
     try {
       state = state.copyWith(isLoading: true, clearError: true);
 
-      // TODO: replace with your repo call:
-      // final res = await RestaurantRepo().getMenu(id);
+      final res = await ManagerRepo().getMenu(restaurantId: id);
+      print(res);
+      print(res! is List<Category>);
+      if (res is ConnectionStates) {
+        state = state.copyWith(error: "Unexpected error!", isLoading: false);
+        return;
+      }
 
-      await Future.delayed(const Duration(milliseconds: 700));
-      final mock = _mockMenu(id);
+      // await Future.delayed(const Duration(milliseconds: 700));
+      // final mock = _mockMenu(id);
+      int max = 0;
+      for (var i in res as List<Category>) {
+        for (var j in i.item) {
+          max = math.max(max, j.expectedDuration.toInt());
+        }
+      }
 
       state = state.copyWith(
         isLoading: false,
-        restaurantName: mock.$1,
-        rating: mock.$2,
-        waitRangeText: mock.$3,
-        categories: mock.$4,
+        rating: state.rating,
+        waitRangeText: "$max min wait",
+        categories: res,
         selectedCategoryIndex: 0,
         clearSelectedItem: true,
         selectedQty: 1,
@@ -75,13 +90,12 @@ class RestaurantMenuViewModel extends Notifier<RestaurantMenuState> {
     if (state.selectedQty <= 1) return;
     state = state.copyWith(selectedQty: state.selectedQty - 1);
   }
-
 }
 
 final restaurantMenuViewModelProvider =
     NotifierProvider<RestaurantMenuViewModel, RestaurantMenuState>(
-  () => RestaurantMenuViewModel(),
-);
+      () => RestaurantMenuViewModel(),
+    );
 
 /// -------------------- MOCK DATA --------------------
 (String, num, String, List<Category>) _mockMenu(int restaurantId) {
@@ -106,10 +120,20 @@ final restaurantMenuViewModelProvider =
       id: 1,
       name: "Burgers",
       item: [
-        it(11, "Classic Beef Beef", 12.99, 18,
-            desc: "A juicy beef patty with lettuce, tomato, onion and pickles."),
-        it(12, "Spicy Chicken Beef", 13.49, 20,
-            desc: "Crispy fried chicken, sriracha mayo, jalapeños and coleslaw."),
+        it(
+          11,
+          "Classic Beef Beef",
+          12.99,
+          18,
+          desc: "A juicy beef patty with lettuce, tomato, onion and pickles.",
+        ),
+        it(
+          12,
+          "Spicy Chicken Beef",
+          13.49,
+          20,
+          desc: "Crispy fried chicken, sriracha mayo, jalapeños and coleslaw.",
+        ),
       ],
     ),
     Category(

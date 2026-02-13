@@ -228,4 +228,58 @@ class OrderRepo {
     return _rateOrderKwargBuilder({'id': orderId, 'rate': rate});
   }
   //////////////////////////////////////////////////////
+  Future<Response> _orderItemsRequest(Map<String, dynamic> kwargs) async {
+    Options options = Options(
+      followRedirects: false,
+      validateStatus: (status) {
+        return status! < 600;
+      },
+      headers: {'Authorization': await TokenStore.getAccessToken()},
+    );
+    return await HttpClient.instance.post(
+      'me/orders/create/',
+      options: options,
+      data: {
+        'number': kwargs['rate'], 
+        'order': kwargs['id']},
+    );
+  }
+
+  Future<dynamic> _orderItemsHandler(Response response) async {
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return ConnectionStates.Success;
+    } else if (response.statusCode == 400) {
+      return ConnectionStates.BadRequest;
+    } else if (response.statusCode == 401) {
+      return ConnectionStates.Unauthorized;
+    } else if (response.statusCode == 404) {
+      return ConnectionStates.TokenFailure;
+    } else {
+      if (response.statusCode == 500) {
+        return ConnectionStates.DataBase;
+      } else if (response.statusCode == 502) {
+        return ConnectionStates.BadGateWay;
+      } else if (response.statusCode == 504) {
+        return ConnectionStates.GateWayTimeOut;
+      } else {
+        return ConnectionStates.Unexpected;
+      }
+    }
+  }
+
+  Future<dynamic> _orderItemsKwargBuilder(Map<String, dynamic> kwargs) async {
+    return handleErrors(kwargs, _orderItemsRequest, _orderItemsHandler);
+  }
+
+  Future<dynamic> orderItems({
+    required int restaurantId, 
+    required num latitude,
+    required num longitude,
+    required List<int> items,
+    }) {
+    return _orderItemsKwargBuilder({
+        // 'id': orderId, 
+        // 'rate': rate
+      });
+  }
 }

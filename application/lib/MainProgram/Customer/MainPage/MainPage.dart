@@ -1,4 +1,5 @@
 import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
+import 'package:application/GlobalWidgets/InternetManager/HttpClient.dart';
 import 'package:application/GlobalWidgets/NavigationServices/NavigationService.dart';
 import 'package:application/GlobalWidgets/NavigationServices/RouteFactory.dart';
 import 'package:application/MainProgram/Customer/MainPage/MainPageViewModel.dart';
@@ -88,7 +89,10 @@ class _CustomerHomePageState extends ConsumerState<CustomerHomePage> {
                         r: r,
                         onSelect: () {
                           var route = AppRoutes.fade(
-                            RestaurantMenu(restaurantId: r.id ?? -1),
+                            RestaurantMenu(
+                              restaurantId: r.id ?? -1,
+                              restaurantName: r.name,
+                            ),
                           );
                           NavigationService.push(route);
                         },
@@ -143,7 +147,10 @@ class _CustomerHomePageState extends ConsumerState<CustomerHomePage> {
                       r: r,
                       onSelect: () {
                         var route = AppRoutes.fade(
-                          RestaurantMenu(restaurantId: r.id ?? -1),
+                          RestaurantMenu(
+                            restaurantId: r.id ?? -1,
+                            restaurantName: r.name,
+                          ),
                         );
                         NavigationService.push(route);
                       },
@@ -379,7 +386,6 @@ class _RestaurantCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-
     return Container(
       width: 190,
       decoration: BoxDecoration(
@@ -409,7 +415,10 @@ class _RestaurantCard extends StatelessWidget {
                         color: Colors.black.withOpacity(0.35),
                       ),
                     )
-                  : Image.network(r.image!, fit: BoxFit.cover),
+                  : Image.network(
+                      HttpClient.instanceImage + r.image!,
+                      fit: BoxFit.cover,
+                    ),
             ),
           ),
           Padding(
@@ -424,27 +433,28 @@ class _RestaurantCard extends StatelessWidget {
                   style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w900),
                 ),
                 const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.star_rounded,
-                      size: 16,
-                      color: Colors.black.withOpacity(0.5),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      (r.rating ?? 0).toStringAsFixed(1),
-                      style: t.bodySmall?.copyWith(
-                        color: Colors.black.withOpacity(0.6),
-                        fontWeight: FontWeight.w700,
+                if ((r.rating ?? 0) != 0)
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.star_rounded,
+                        size: 16,
+                        color: Colors.black.withOpacity(0.5),
                       ),
-                    ),
-                  ],
-                ),
+                      const SizedBox(width: 4),
+                      Text(
+                        (r.rating ?? 0).toStringAsFixed(1),
+                        style: t.bodySmall?.copyWith(
+                          color: Colors.black.withOpacity(0.6),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
 
                 const SizedBox(height: 8),
                 Text(
-                  "• Detour +3 min",
+                  "• Detour +${(r.duration! / 60).toInt()} min",
                   style: t.bodySmall?.copyWith(
                     color: Colors.black.withOpacity(0.55),
                     fontWeight: FontWeight.w600,
@@ -467,11 +477,11 @@ class _RestaurantCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             child: GestureDetector(
-              onTap: onSelect,
+              onTap: r.isOpen ? onSelect : () {},
               child: Container(
                 height: 40,
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
+                  color: r.isOpen ? AppColors.primary : AppColors.coal,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(

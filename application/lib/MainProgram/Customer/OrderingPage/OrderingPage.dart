@@ -19,11 +19,6 @@ class UserOrderHistory extends StatefulWidget {
     this.onOpenActive, // tap on active card
   });
 
-  /// Should return:
-  /// {
-  ///   "isLastPage": bool,
-  ///   "orders": List<Order>
-  /// }
   final Future<dynamic> Function({
     required int pageKey,
     required int pageSize,
@@ -572,7 +567,7 @@ class _PastOrderCardState extends State<_PastOrderCard> {
                     widget.order.rating = selectedValue;
                     OrderRepo().rateOrder(
                       orderId: widget.order.id,
-                      rate: selectedValue!,
+                      rate: selectedValue! + 1,
                     );
                     setState(() {});
                   },
