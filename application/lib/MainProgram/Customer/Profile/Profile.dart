@@ -5,6 +5,7 @@ import 'package:application/GlobalWidgets/NavigationServices/NavigationService.d
 import 'package:application/GlobalWidgets/NavigationServices/RouteFactory.dart';
 import 'package:application/GlobalWidgets/Services/Tapsell.dart';
 import 'package:application/Handlers/TokenHandler.dart';
+import 'package:application/MainProgram/Customer/Profile/ProfileState.dart';
 import 'package:application/MainProgram/Customer/Profile/ProfileViewModel.dart';
 import 'package:application/MainProgram/Login/Login.dart';
 import 'package:flutter/material.dart';
@@ -23,12 +24,22 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   late final TextEditingController _passC;
 
   @override
-  void initState() {
-    super.initState();
-    final s = ref.read(profileViewModelProvider);
-    _userC = TextEditingController(text: s.username);
-    _passC = TextEditingController(text: s.password);
-  }
+void initState() {
+  super.initState();
+  final s = ref.read(profileViewModelProvider);
+  _userC = TextEditingController(text: s.username);
+  _passC = TextEditingController(text: s.password);
+
+  ref.listen<ProfileState>(profileViewModelProvider, (prev, next) {
+    if (prev?.username != next.username && _userC.text != next.username) {
+      _userC.text = next.username;
+    }
+    if (prev?.password != next.password && _passC.text != next.password) {
+      _passC.text = next.password;
+    }
+  });
+}
+
 
   @override
   void dispose() {
@@ -101,29 +112,34 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
           children: [
-            _TopCard(
-              username: state.username,
-              imageFile: state.imageFile,
-              isEditing: state.isEditing,
-              onEditTap: vm.toggleEdit,
-              onPickImage: () => vm.pickProfileImage(context),
-            ),
+            state.isLoading
+                ? const _TopCardShimmer()
+                : _TopCard(
+                    username: state.username,
+                    imageFile: state.imageFile,
+                    isEditing: state.isEditing,
+                    onEditTap: vm.toggleEdit,
+                    onPickImage: () => vm.pickProfileImage(context),
+                  ),
             const SizedBox(height: 14),
 
             // inline edit fields (no navigation)
-            AnimatedCrossFade(
-              duration: const Duration(milliseconds: 220),
-              crossFadeState: state.isEditing
-                  ? CrossFadeState.showFirst
-                  : CrossFadeState.showSecond,
-              firstChild: _EditSection(
-                usernameController: _userC,
-                passwordController: _passC,
-                onUsernameChanged: vm.setUsername,
-                onPasswordChanged: vm.setPassword,
+              if (!state.isLoading) ...[
+              AnimatedCrossFade(
+                duration: const Duration(milliseconds: 220),
+                crossFadeState: state.isEditing
+                    ? CrossFadeState.showFirst
+                    : CrossFadeState.showSecond,
+                firstChild: _EditSection(
+                  usernameController: _userC,
+                  passwordController: _passC,
+                  onUsernameChanged: vm.setUsername,
+                  onPasswordChanged: vm.setPassword,
+                ),
+                secondChild: const SizedBox.shrink(),
               ),
-              secondChild: const SizedBox.shrink(),
-            ),
+              const SizedBox(height: 14),
+            ],
 
             const SizedBox(height: 14),
 
@@ -546,6 +562,177 @@ class _AdPlaceholder extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TopCardShimmer extends StatefulWidget {
+  const _TopCardShimmer();
+
+  @override
+  State<_TopCardShimmer> createState() => _TopCardShimmerState();
+}
+
+class _TopCardShimmerState extends State<_TopCardShimmer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.black.withOpacity(0.06)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0F000000),
+            blurRadius: 18,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const _ShimmerCircle(size: 52),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                _ShimmerLine(width: 140, height: 14, radius: 6),
+                SizedBox(height: 8),
+                _ShimmerLine(width: 90, height: 12, radius: 6),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          const _ShimmerLine(width: 110, height: 40, radius: 12),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShimmerLine extends StatelessWidget {
+  const _ShimmerLine({
+    required this.width,
+    required this.height,
+    required this.radius,
+  });
+
+  final double width;
+  final double height;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return _ShimmerBlock(width: width, height: height, radius: radius);
+  }
+}
+
+class _ShimmerCircle extends StatelessWidget {
+  const _ShimmerCircle({required this.size});
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(999),
+      child: _ShimmerBlock(width: size, height: size, radius: 999),
+    );
+  }
+}
+
+class _ShimmerBlock extends StatefulWidget {
+  const _ShimmerBlock({
+    required this.width,
+    required this.height,
+    required this.radius,
+  });
+
+  final double width;
+  final double height;
+  final double radius;
+
+  @override
+  State<_ShimmerBlock> createState() => _ShimmerBlockState();
+}
+
+class _ShimmerBlockState extends State<_ShimmerBlock>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const base = Color(0xFFE7E7E7);
+
+    return SizedBox(
+      width: widget.width == double.infinity ? null : widget.width,
+      height: widget.height,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(widget.radius),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Container(color: base),
+            AnimatedBuilder(
+              animation: _c,
+              builder: (context, _) {
+                final dx = (_c.value * 2) - 1; // -1..+1
+                return Transform.translate(
+                  offset: Offset(dx * 220, 0),
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [
+                          Color(0x00FFFFFF),
+                          Color(0x55FFFFFF),
+                          Color(0x00FFFFFF),
+                        ],
+                        stops: [0.25, 0.5, 0.75],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

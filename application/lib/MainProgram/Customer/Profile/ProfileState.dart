@@ -7,6 +7,7 @@ class ProfileState {
 
   final bool isEditing;
   final bool isSaving;
+  final bool isLoading; // ✅ NEW
   final String? error;
 
   const ProfileState({
@@ -15,6 +16,7 @@ class ProfileState {
     this.imageFile,
     this.isEditing = false,
     this.isSaving = false,
+    this.isLoading = false, // ✅ NEW
     this.error,
   });
 
@@ -25,6 +27,7 @@ class ProfileState {
     bool setImageNull = false,
     bool? isEditing,
     bool? isSaving,
+    bool? isLoading, // ✅ NEW
     String? error,
     bool clearError = false,
   }) {
@@ -34,6 +37,7 @@ class ProfileState {
       imageFile: setImageNull ? null : (imageFile ?? this.imageFile),
       isEditing: isEditing ?? this.isEditing,
       isSaving: isSaving ?? this.isSaving,
+      isLoading: isLoading ?? this.isLoading, // ✅ NEW
       error: clearError ? null : (error ?? this.error),
     );
   }
