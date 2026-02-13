@@ -8,7 +8,6 @@ from .models import (
     MenuItem,
     Category,
     Rating,
-    Review,
 )
 
 admin.site.register(User)
@@ -19,4 +18,3 @@ admin.site.register(OrderItem)
 admin.site.register(MenuItem)
 admin.site.register(Category)
 admin.site.register(Rating)
-admin.site.register(Review)
