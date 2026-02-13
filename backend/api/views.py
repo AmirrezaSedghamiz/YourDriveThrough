@@ -1031,7 +1031,9 @@ class CustomerUpdateView(APIView):
             "image": customer.image.url if customer.image else None,
         }, status=status.HTTP_200_OK)
 
-
+@extend_schema(
+    request=CustomerReportSerializer(many=False)
+)
 class CustomerReportCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -1046,7 +1048,9 @@ class CustomerReportCreateView(APIView):
         return Response({"message": "Report submitted successfully", "report": serializer.data},
                         status=status.HTTP_201_CREATED)
 
-
+@extend_schema(
+    request=RestaurantReportSerializer(many=False)
+)
 class RestaurantReportCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
