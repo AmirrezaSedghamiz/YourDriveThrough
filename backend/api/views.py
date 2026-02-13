@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 from rest_framework import status, permissions
 from rest_framework import generics
-from .serializers import CustomerSerializer, LoginSerializer, RatingCreateSerializer, RatingSerializer, RestaurantMenuSyncSerializer, RestaurantUpdateSerializer, UserSerializer
+from .serializers import CustomerSerializer, LoginSerializer, RatingCreateSerializer, RatingSerializer, MenuSyncSerializer, RestaurantUpdateSerializer, UserSerializer
 from .serializers import SignupSerializer
 from .serializers import RestaurantSerializer
 from .serializers import ClosestRestaurantsSerializer
