@@ -29,14 +29,33 @@ class Item {
     };
   }
 
+  static int _int(dynamic v, {int fallback = 0}) {
+    if (v == null) return fallback;
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? fallback;
+    return fallback;
+  }
+
+  static num _num(dynamic v, {num fallback = 0}) {
+    if (v == null) return fallback;
+    if (v is num) return v;
+    if (v is String) return num.tryParse(v) ?? fallback;
+    return fallback;
+  }
+
+  static String? _str(dynamic v) => v?.toString();
+
+
+  /// ✅ parses API map
   factory Item.fromMap(Map<String, dynamic> map) {
     return Item(
-      id: map['id'] as int,
-      name: map['name'] as String,
-      image: map['image'] != null ? map['image'] as String : null,
-      expectedDuration: map['expectedDuration'] as num,
-      price: num.parse(map['price']),
-      description: map['description'] != null ? map['description'] as String : null,
+      id: _int(map['id']),
+      name: _str(map['name']) ?? '',
+      image: _str(map['image']),
+      expectedDuration: _num(map['expected_duration']),
+      price: _num(map['price']),
+      description: _str(map['description']),
     );
   }
 

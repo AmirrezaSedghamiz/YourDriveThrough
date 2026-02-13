@@ -63,7 +63,6 @@ class Order {
   }
 
   factory Order.fromMap(Map<String, dynamic> map) {
-    print("${map['id']} : ${map['status']}");
     return Order(
       id: _int(map['id']),
       customerId: _int(map['customer_id'], fallback: 0),
@@ -74,10 +73,10 @@ class Order {
       createdAt: _date(map['start'] ?? map['created_at']),
       expectedDuration: _int(map['expected_duration']),
       total: _num(map['total']),
+      rating: map['rating'],
       items: (map['items'] as List? ?? [])
-          .map((e) => ItemOrder.fromMap(e as Map<String, dynamic>))
+          .map((e) => ItemOrder.fromMap(e))
           .toList(),
-      rating: map['rating']
     );
   }
 

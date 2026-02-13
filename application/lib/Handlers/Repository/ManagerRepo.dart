@@ -5,6 +5,7 @@ import 'package:application/GlobalWidgets/InternetManager/ConnectionStates.dart'
 import 'package:application/GlobalWidgets/InternetManager/HttpClient.dart';
 import 'package:application/GlobalWidgets/InternetManager/InternetHandler.dart';
 import 'package:application/Handlers/TokenHandler.dart';
+import 'package:application/SourceDesign/Models/Category.dart';
 import 'package:application/SourceDesign/Models/RestauarantInfo.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
@@ -117,11 +118,11 @@ class ManagerRepo {
   }
 
   Future<dynamic> _getMenuHandler(Response response) async {
-    print(response.data);
+    // print(response.data);
     print(response.statusCode);
-    await _saveDebugJson(response.data, 'menu');
+    // await _saveDebugJson(response.data, 'menu');
     if (response.statusCode == 200) {
-      return ConnectionStates.Success;
+      return categoriesFromResponse(response.data);
     } else if (response.statusCode == 400) {
       return ConnectionStates.BadRequest;
     } else if (response.statusCode == 401) {

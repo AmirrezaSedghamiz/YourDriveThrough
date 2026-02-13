@@ -7,6 +7,7 @@ class RestaurantInfo {
   String address;
   num latitude;
   num longitude;
+  num? duration;
   String? image;
   bool profileComplete;
   num? rating;
@@ -19,6 +20,7 @@ class RestaurantInfo {
     required this.latitude,
     required this.longitude,
     this.image,
+    this.duration,
     required this.profileComplete,
     required this.rating,
     required this.isOpen,
@@ -57,8 +59,9 @@ class RestaurantInfo {
       longitude: _parseNum(map['longitude']),
       image: map['image'] != null ? map['image'] as String : null,
       profileComplete: map['profile_complete'],
-      rating: _parseNum(map['rating']),
+      rating: _parseNum(map['average_rating']),
       isOpen: map['is_open'],
+      duration: map['duration_seconds'],
     );
   }
 
