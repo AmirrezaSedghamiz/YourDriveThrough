@@ -3,6 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.exceptions import NotFound
+from rest_framework import serializers
 from rest_framework import status, permissions
 from rest_framework import generics
 from django.db import transaction
@@ -875,3 +876,104 @@ class ReorderView(APIView):
             response_data["unavailable_items"] = unavailable_items
 
         return Response(response_data, status=status.HTTP_201_CREATED)
+
+
+class GetClosestRestaurants2View(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    class InputSerializer(serializers.Serializer):
+        lat1 = serializers.FloatField()
+        lon1 = serializers.FloatField()
+        lat2 = serializers.FloatField()
+        lon2 = serializers.FloatField()
+        page = serializers.IntegerField(default=1)
+        page_size = serializers.IntegerField(default=10)
+
+    def post(self, request):
+        serializer = self.InputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        lat1 = serializer.validated_data["lat1"]
+        lon1 = serializer.validated_data["lon1"]
+        lat2 = serializer.validated_data["lat2"]
+        lon2 = serializer.validated_data["lon2"]
+        page = serializer.validated_data["page"]
+        page_size = serializer.validated_data["page_size"]
+
+        restaurants = (
+            Restaurant.objects
+            .filter(latitude__isnull=False, longitude__isnull=False)
+            .filter(latitude__gte=0, longitude__gte=0)
+        )
+
+        if not restaurants.exists():
+            return Response({"results": [], "pagination": {}}, status=status.HTTP_200_OK)
+
+        # --- Neshan API Call ---
+        origins = f"{lat1},{lon1}|{lat2},{lon2}"
+        destinations = "|".join([
+            f"{float(r.latitude):.6f},{float(r.longitude):.6f}" for r in restaurants
+        ])
+        url = f"https://api.neshan.org/v1/distance-matrix?type=car&origins={origins}&destinations={destinations}"
+        headers = {"Api-Key": settings.NESHAN_API_KEY}
+
+        try:
+            response = requests.get(url, headers=headers, timeout=5)
+            response.raise_for_status()
+            data = response.json()
+        except requests.RequestException as e:
+            return Response({"detail": f"Error calling distance API: {str(e)}"},
+                            status=status.HTTP_502_BAD_GATEWAY)
+
+        # --- Compute total duration per restaurant ---
+        durations = []
+        if "rows" in data and len(data["rows"]) == 2:
+            for idx, r in enumerate(restaurants):
+                # sum of durations from both origins
+                total_duration = 0
+                for row in data["rows"]:
+                    elem = row["elements"][idx]
+                    duration = elem.get("duration", {}).get("value", float("inf"))
+                    total_duration += duration if duration is not None else float("inf")
+                r.total_duration_seconds = total_duration
+                durations.append((r, total_duration))
+        else:
+            for r in restaurants:
+                r.total_duration_seconds = None
+                durations.append((r, float("inf")))
+
+        # Sort by total duration
+        durations.sort(key=lambda x: x[1])
+        ordered_restaurants = [r[0] for r in durations]
+
+        # Pagination
+        paginator = Paginator(ordered_restaurants, page_size)
+        page_obj = paginator.get_page(page)
+
+        # --- Compute average rating per restaurant ---
+        restaurant_ids = [r.id for r in page_obj.object_list]
+        avg_ratings = (
+            Order.objects
+            .filter(restaurant_id__in=restaurant_ids, rating__isnull=False)
+            .values("restaurant_id")
+            .annotate(avg_rating=Avg("rating__number"))
+        )
+        avg_rating_map = {item["restaurant_id"]: item["avg_rating"] for item in avg_ratings}
+
+        # Serialize restaurants and attach total duration + average rating
+        serialized_data = RestaurantSerializer(page_obj.object_list, many=True).data
+        for r_obj, r_data in zip(page_obj.object_list, serialized_data):
+            r_data["total_duration_seconds"] = getattr(r_obj, "total_duration_seconds", None)
+            r_data["average_rating"] = avg_rating_map.get(r_obj.id)
+
+        return Response({
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total_pages": paginator.num_pages,
+                "total_items": paginator.count,
+                "has_next": page_obj.has_next(),
+                "has_previous": page_obj.has_previous(),
+            },
+            "results": serialized_data
+        }, status=status.HTTP_200_OK)

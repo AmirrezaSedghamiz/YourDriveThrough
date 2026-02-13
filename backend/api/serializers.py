@@ -274,6 +274,9 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
         expected_arrival_time = travel_duration
 
+        validated_data = validated_data.copy()
+        validated_data.pop("restaurant", None)
+
         order = Order.objects.create(
             restaurant=restaurant,
             expected_duration=max_duration,
