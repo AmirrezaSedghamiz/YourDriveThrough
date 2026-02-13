@@ -24,6 +24,7 @@ from rest_framework.exceptions import NotFound
 from drf_spectacular.utils import extend_schema
 from django.shortcuts import get_object_or_404
 from django.db.models import Case, When, IntegerField, Prefetch
+from django.db.models import Avg
 import requests
 from django.conf import settings
 
@@ -160,15 +161,10 @@ class GetClosestRestaurantsView(APIView):
         if not restaurants.exists():
             return Response({"results": [], "pagination": {}}, status=status.HTTP_200_OK)
 
+        # --- Neshan API Call ---
         origins = f"{lat},{lon}"
-        destinations = "|".join([
-            f"{r.latitude},{r.longitude}" for r in restaurants
-        ])
-
-        url = "https://api.neshan.org/v1/distance-matrix?" + "type=car&origins=" + origins + "&destinations=" + destinations
-
-        print(url)
-
+        destinations = "|".join([f"{r.latitude},{r.longitude}" for r in restaurants])
+        url = f"https://api.neshan.org/v1/distance-matrix?type=car&origins={origins}&destinations={destinations}"
         headers = {"Api-Key": settings.NESHAN_API_KEY}
 
         try:
@@ -179,28 +175,45 @@ class GetClosestRestaurantsView(APIView):
             return Response({"detail": f"Error calling distance API: {str(e)}"},
                             status=status.HTTP_502_BAD_GATEWAY)
 
+        # --- Attach duration ---
         durations = []
         if "rows" in data and len(data["rows"]) > 0:
             elements = data["rows"][0]["elements"]
             for r, elem in zip(restaurants, elements):
-                duration = elem.get("duration", {}).get("value", float("inf"))  # seconds
+                duration = elem.get("duration", {}).get("value", None)  # seconds
                 r.duration_seconds = duration
-                durations.append((r, duration))
+                durations.append((r, duration if duration is not None else float("inf")))
         else:
             for r in restaurants:
                 r.duration_seconds = None
                 durations.append((r, float("inf")))
 
+        # Sort by duration
         durations.sort(key=lambda x: x[1])
         ordered_restaurants = [r[0] for r in durations]
 
+        # Pagination
         paginator = Paginator(ordered_restaurants, page_size)
         page_obj = paginator.get_page(page)
 
-        # Include duration in serialized results
+        # --- Compute average rating per restaurant ---
+        # Get restaurant IDs on this page
+        restaurant_ids = [r.id for r in page_obj.object_list]
+
+        # Compute average ratings in one query
+        avg_ratings = (
+            Order.objects
+            .filter(restaurant_id__in=restaurant_ids, rating__isnull=False)
+            .values("restaurant_id")
+            .annotate(avg_rating=Avg("rating__number"))
+        )
+        avg_rating_map = {item["restaurant_id"]: item["avg_rating"] for item in avg_ratings}
+
+        # Serialize restaurants and attach duration + average rating
         serialized_data = RestaurantSerializer(page_obj.object_list, many=True).data
         for r_obj, r_data in zip(page_obj.object_list, serialized_data):
             r_data["duration_seconds"] = getattr(r_obj, "duration_seconds", None)
+            r_data["average_rating"] = avg_rating_map.get(r_obj.id)
 
         return Response({
             "pagination": {
@@ -213,6 +226,7 @@ class GetClosestRestaurantsView(APIView):
             },
             "results": serialized_data
         }, status=status.HTTP_200_OK)
+
 
 
 @extend_schema(
@@ -392,48 +406,36 @@ class MyOrdersView(APIView):
         else:
             raise PermissionDenied("User has no valid role.")
 
-        queryset = queryset.prefetch_related(
-            Prefetch(
-                "rating_set",
-                queryset=Rating.objects.only("id", "number", "order"),
-                to_attr="prefetched_ratings",
-            )
-        )
-
         # filter statuses if provided
         if statuses:
             queryset = queryset.filter(status__in=statuses)
-
-            # custom ordering ONLY when statuses are provided
             status_ordering = Case(
-                *[
-                    When(status=status, then=pos)
-                    for pos, status in enumerate(statuses)
-                ],
+                *[When(status=status, then=pos) for pos, status in enumerate(statuses)],
                 output_field=IntegerField(),
             )
-
-            queryset = queryset.order_by(
-                status_ordering,
-                "-id",
-            )
+            queryset = queryset.order_by(status_ordering, "-id")
         else:
-            # default ordering: newest first, no status grouping
             queryset = queryset.order_by("-id")
 
         paginator = Paginator(queryset, page_size)
         page_obj = paginator.get_page(page)
+        orders = list(page_obj.object_list)
 
-        orders = page_obj.object_list
+        # Get ratings for orders on this page
+        order_ids = [o.id for o in orders]
+        ratings_map = {
+            r.order_id: r for r in Rating.objects.filter(order_id__in=order_ids)
+        }
+
         serialized_orders = OrderSerializer(orders, many=True).data
 
-        # Attach rating to each order (if exists)
+        # Attach rating to each serialized order
         for order_obj, order_data in zip(orders, serialized_orders):
-            ratings = getattr(order_obj, "prefetched_ratings", [])
-            if ratings:
+            rating = ratings_map.get(order_obj.id)
+            if rating:
                 order_data["rating"] = {
-                    "id": ratings[0].id,
-                    "number": ratings[0].number,
+                    "id": rating.id,
+                    "number": rating.number,
                 }
             else:
                 order_data["rating"] = None
@@ -450,9 +452,6 @@ class MyOrdersView(APIView):
             },
             "results": serialized_orders
         })
-
-
-
 
 
 class LeaveRatingView(APIView):
