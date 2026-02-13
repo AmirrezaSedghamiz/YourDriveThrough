@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 from rest_framework import status, permissions
 from rest_framework import generics
-from .serializers import CustomerSerializer, LoginSerializer, RatingCreateSerializer, RatingSerializer, RestaurantUpdateSerializer, UserSerializer
+from .serializers import CustomerSerializer, LoginSerializer, RatingCreateSerializer, RatingSerializer, RestaurantMenuSyncSerializer, RestaurantUpdateSerializer, UserSerializer
 from .serializers import SignupSerializer
 from .serializers import RestaurantSerializer
 from .serializers import ClosestRestaurantsSerializer
@@ -640,5 +640,101 @@ class OrderRatingView(APIView):
                 "rated": True,
                 "rating": RatingSerializer(rating).data
             },
+            status=status.HTTP_200_OK
+        )
+
+
+class RestaurantMenuSyncView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request):
+        # Must be restaurant
+        if not hasattr(request.user, "restaurant"):
+            return Response(
+                {"detail": "Only restaurants can modify menu"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        restaurant = request.user.restaurant
+
+        serializer = RestaurantMenuSyncSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        incoming_categories = serializer.validated_data["categories"]
+
+        # Existing DB state
+        existing_categories = {
+            c.id: c for c in Category.objects.filter(restaurant=restaurant, is_active=True)
+        }
+        existing_items = {
+            i.id: i for i in MenuItem.objects.filter(
+                category__restaurant=restaurant,
+                is_active=True
+            )
+        }
+
+        seen_category_ids = set()
+        seen_item_ids = set()
+
+        for cat_data in incoming_categories:
+            cat_id = cat_data.get("id")
+            items_data = cat_data["items"]
+
+            # CREATE or UPDATE category
+            if cat_id and cat_id in existing_categories:
+                category = existing_categories[cat_id]
+                category.name = cat_data["name"]
+                category.is_active = True
+                category.save(update_fields=["name", "is_active"])
+                seen_category_ids.add(category.id)
+            else:
+                category = Category.objects.create(
+                    restaurant=restaurant,
+                    name=cat_data["name"],
+                    is_active=True
+                )
+
+            # Process items inside category
+            for item_data in items_data:
+                item_id = item_data.get("id")
+
+                if item_id and item_id in existing_items:
+                    # Update existing item
+                    item = existing_items[item_id]
+                    item.name = item_data["name"]
+                    item.description = item_data["description"]
+                    item.price = item_data["price"]
+                    item.expected_duration = item_data["expected_duration"]
+                    item.category = category
+                    item.is_active = item_data.get("is_active", True)
+                    item.save()
+                    seen_item_ids.add(item.id)
+                else:
+                    # Create new item
+                    item = MenuItem.objects.create(
+                        category=category,
+                        name=item_data["name"],
+                        description=item_data["description"],
+                        price=item_data["price"],
+                        expected_duration=item_data["expected_duration"],
+                        is_active=True,
+                    )
+                    seen_item_ids.add(item.id)
+
+        # Deactivate missing items
+        for item_id, item in existing_items.items():
+            if item_id not in seen_item_ids:
+                item.is_active = False
+                item.save(update_fields=["is_active"])
+
+        # Deactivate missing categories
+        for cat_id, category in existing_categories.items():
+            if cat_id not in seen_category_ids:
+                category.is_active = False
+                category.save(update_fields=["is_active"])
+
+        return Response(
+            {"message": "Menu synced successfully"},
             status=status.HTTP_200_OK
         )
