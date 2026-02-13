@@ -1,33 +1,31 @@
+import requests
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import NotFound
 from rest_framework import status, permissions
 from rest_framework import generics
+from django.db import transaction
+from django.shortcuts import get_object_or_404
+from django.db.models import Case, When, IntegerField
+from django.db.models import Avg
+from django.utils import timezone
+from django.core.paginator import Paginator
+from django.conf import settings
+from drf_spectacular.utils import extend_schema
+from collections import defaultdict
 from .serializers import CustomerSerializer, LoginSerializer, RatingCreateSerializer, RatingSerializer, MenuSyncSerializer, RestaurantUpdateSerializer, UserSerializer
 from .serializers import SignupSerializer
 from .serializers import RestaurantSerializer
 from .serializers import ClosestRestaurantsSerializer
-from .serializers import CategorySerializer
 from .serializers import MenuItemSerializer
 from .serializers import RestaurantMenuRequestSerializer
 from .serializers import RestaurantSearchSerializer
 from .serializers import MenuSyncSerializer
-from django.db import transaction
-from django.utils import timezone
-from django.core.paginator import Paginator
-from .models import Rating, Restaurant, Category, Customer, Order, MenuItem
-from .utils import haversine
 from .serializers import OrderCreateSerializer
 from .serializers import OrderSerializer
 from .serializers import MyOrdersFilterSerializer
-from collections import defaultdict
-from rest_framework.exceptions import NotFound
-from drf_spectacular.utils import extend_schema
-from django.shortcuts import get_object_or_404
-from django.db.models import Case, When, IntegerField, Prefetch
-from django.db.models import Avg
-import requests
-from django.conf import settings
+from .models import Rating, Restaurant, Category, Customer, Order, MenuItem
 
 
 class MeAuthView(APIView):
@@ -130,7 +128,6 @@ class RestaurantMeUpdateView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
-        # Reuse RestaurantSerializer for derived fields
         response_data = serializer.data
         response_data["profile_complete"] = all([
             restaurant.name,
@@ -240,19 +237,6 @@ class GetClosestRestaurantsView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-
-@extend_schema(
-    responses=CategorySerializer(many=True),
-)
-class GetCategoriesView(APIView):
-    permission_classes = [permissions.AllowAny]
-
-    def get(self, request):
-        categories = Category.objects.all()
-        serializer = CategorySerializer(categories, many=True)
-        return Response({"categories": serializer.data}, status=status.HTTP_200_OK)
-
-
 class SaveMenuItemView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -303,25 +287,37 @@ class RestaurantMenuGroupedView(APIView):
         except Restaurant.DoesNotExist:
             raise NotFound("Restaurant not found.")
 
-        # Fetch items with their category
-        items = MenuItem.objects.filter(
-            category__restaurant=restaurant,
-            is_active=True
-        ).select_related("category")
+        items = (
+            MenuItem.objects
+            .filter(
+                category__restaurant=restaurant,
+                is_active=True
+            )
+            .select_related("category")
+        )
 
-        # Group by category name
         grouped = defaultdict(list)
-        for item in items:
-            category_name = item.category.name if item.category else "Uncategorized"
-            grouped[category_name].append(item)
 
-        response_data = [
-            {
+        for item in items:
+            if item.category:
+                key = item.category.id
+            else:
+                key = None
+            grouped[key].append(item)
+
+        response_data = []
+
+        for category_id, category_items in grouped.items():
+            if category_id is None:
+                category_name = "Uncategorized"
+            else:
+                category_name = category_items[0].category.name
+
+            response_data.append({
+                "id": category_id,
                 "category": category_name,
-                "items": MenuItemSerializer(items, many=True).data,
-            }
-            for category_name, items in grouped.items()
-        ]
+                "items": MenuItemSerializer(category_items, many=True).data,
+            })
 
         return Response(response_data, status=status.HTTP_200_OK)
 
@@ -337,7 +333,7 @@ class OrderCreateView(generics.CreateAPIView):
             serializer.save(
                 customer=customer,
                 status="pending",
-                created_at=timezone.now(),
+                start=timezone.now(),
             )
 
 
@@ -418,7 +414,6 @@ class MyOrdersView(APIView):
         else:
             raise PermissionDenied("User has no valid role.")
 
-        # filter statuses if provided
         if statuses:
             queryset = queryset.filter(status__in=statuses)
             status_ordering = Case(
@@ -433,7 +428,6 @@ class MyOrdersView(APIView):
         page_obj = paginator.get_page(page)
         orders = list(page_obj.object_list)
 
-        # Get ratings for orders on this page
         order_ids = [o.id for o in orders]
         ratings_map = {
             r.order_id: r for r in Rating.objects.filter(order_id__in=order_ids)
@@ -441,7 +435,6 @@ class MyOrdersView(APIView):
 
         serialized_orders = OrderSerializer(orders, many=True).data
 
-        # Attach rating to each serialized order
         for order_obj, order_data in zip(orders, serialized_orders):
             rating = ratings_map.get(order_obj.id)
             if rating:
@@ -512,7 +505,6 @@ class OrderStatusUpdateView(APIView):
 
         user = request.user
 
-        # Fetch order with ownership check
         if hasattr(user, "customer"):
             order = get_object_or_404(
                 Order,
@@ -534,7 +526,6 @@ class OrderStatusUpdateView(APIView):
 
         current_status = order.status
 
-        # Terminal states cannot be changed
         if current_status in self.TERMINAL_STATES:
             return Response(
                 {"detail": "Order can no longer be modified"},
@@ -661,7 +652,6 @@ class MeMenuSyncView(APIView):
 
     @transaction.atomic
     def post(self, request):
-        # Ensure user is a restaurant
         if not hasattr(request.user, "restaurant"):
             raise PermissionDenied("Only restaurants can sync menu.")
 
@@ -672,7 +662,6 @@ class MeMenuSyncView(APIView):
 
         incoming_categories = serializer.validated_data["categories"]
 
-        # Fetch existing active categories & items for THIS restaurant only
         existing_categories = {
             c.id: c for c in Category.objects.filter(
                 restaurant=restaurant,
@@ -694,7 +683,6 @@ class MeMenuSyncView(APIView):
             cat_id = cat_data.get("id")
             items_data = cat_data["items"]
 
-            # UPDATE category (if exists and belongs to this restaurant)
             if cat_id:
                 category = existing_categories.get(cat_id)
                 if not category:
@@ -705,7 +693,6 @@ class MeMenuSyncView(APIView):
                 category.save(update_fields=["name", "is_active"])
                 seen_category_ids.add(category.id)
             else:
-                # CREATE new category
                 category = Category.objects.create(
                     restaurant=restaurant,
                     name=cat_data["name"],
@@ -713,7 +700,6 @@ class MeMenuSyncView(APIView):
                 )
                 seen_category_ids.add(category.id)
 
-            # Process items
             for item_data in items_data:
                 item_id = item_data.get("id")
 
@@ -722,7 +708,6 @@ class MeMenuSyncView(APIView):
                     if not item:
                         raise PermissionDenied("Invalid menu item id for this restaurant.")
 
-                    # UPDATE item
                     item.name = item_data["name"]
                     item.description = item_data["description"]
                     item.price = item_data["price"]
@@ -732,7 +717,6 @@ class MeMenuSyncView(APIView):
                     item.save()
                     seen_item_ids.add(item.id)
                 else:
-                    # CREATE new item
                     item = MenuItem.objects.create(
                         category=category,
                         name=item_data["name"],
@@ -743,13 +727,11 @@ class MeMenuSyncView(APIView):
                     )
                     seen_item_ids.add(item.id)
 
-        # Deactivate missing menu items
         for item_id, item in existing_items.items():
             if item_id not in seen_item_ids:
                 item.is_active = False
                 item.save(update_fields=["is_active"])
 
-        # Deactivate missing categories
         for cat_id, category in existing_categories.items():
             if cat_id not in seen_category_ids:
                 category.is_active = False

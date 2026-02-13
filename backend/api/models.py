@@ -53,8 +53,11 @@ class Order(models.Model):
     start = models.DateTimeField()
     expected_duration = models.IntegerField()
 
+    expected_arrival_time = models.IntegerField(default=0)
+
     status = models.CharField(max_length=16)
     total = models.IntegerField()
+
 
 
 class Category(models.Model):
