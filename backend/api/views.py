@@ -439,9 +439,6 @@ class LeaveRatingView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        if not hasattr(request.user, "customer"):
-            raise PermissionDenied("Only customers can leave ratings.")
-
         serializer = RatingCreateSerializer(
             data=request.data,
             context={"request": request}

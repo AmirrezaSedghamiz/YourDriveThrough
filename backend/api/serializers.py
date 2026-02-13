@@ -309,46 +309,38 @@ class RatingCreateSerializer(serializers.Serializer):
 
     def validate(self, data):
         request = self.context["request"]
-        customer = request.user.customer
         order_id = data["order"]
 
-        order = get_object_or_404(Order, id=order_id)
+        try:
+            order = Order.objects.get(id=order_id)
+        except Order.DoesNotExist:
+            raise serializers.ValidationError("Order does not exist.")
 
-        if order.customer != customer:
-            raise serializers.ValidationError(
-                "You can only rate your own orders."
-            )
+        if not hasattr(request.user, "customer") or order.customer != request.user.customer:
+            raise serializers.ValidationError("You can only rate your own orders.")
 
-        if order.status != "recieved":
-            raise serializers.ValidationError(
-                "You can only rate orders that are recieved."
-            )
+        if hasattr(order, "rating"):
+            raise serializers.ValidationError("This order has already been rated.")
 
-        if Rating.objects.filter(
-            order=order,
-            customer=customer
-        ).exists():
-            raise serializers.ValidationError(
-                "You have already rated this order."
-            )
+        if order.status not in ["done", "recieved"]:
+            raise serializers.ValidationError("You can only rate completed orders.")
 
         data["order_obj"] = order
         return data
 
     def create(self, validated_data):
-        customer = self.context["request"].user.customer
         order = validated_data["order_obj"]
 
         return Rating.objects.create(
             order=order,
-            customer=customer,
-            number=validated_data["number"],
+            number=validated_data["number"]
         )
+
 
 class RatingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Rating
-        fields = ["id", "order", "number"]
+        fields = ("id", "order", "number")
 
 
 class RestaurantMenuRequestSerializer(serializers.Serializer):
