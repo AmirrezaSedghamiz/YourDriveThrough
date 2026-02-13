@@ -157,14 +157,25 @@ class GetClosestRestaurantsView(APIView):
         page = serializer.validated_data["page"]
         page_size = serializer.validated_data["page_size"]
 
-        restaurants = Restaurant.objects.exclude(latitude=None).exclude(longitude=None)
+        restaurants = (
+        Restaurant.objects
+            .filter(
+                latitude__isnull=False,
+                longitude__isnull=False,
+                latitude__gte=0,
+                longitude__gte=0,
+            )
+        )
 
         if not restaurants.exists():
             return Response({"results": [], "pagination": {}}, status=status.HTTP_200_OK)
 
         # --- Neshan API Call ---
         origins = f"{lat},{lon}"
-        destinations = "|".join([f"{abs(r.latitude)},{abs(r.longitude)}" for r in restaurants])
+        destinations = "|".join([
+            f"{float(r.latitude):.6f},{float(r.longitude):.6f}"
+            for r in restaurants
+        ])
         url = f"https://api.neshan.org/v1/distance-matrix?type=car&origins={origins}&destinations={destinations}"
         headers = {"Api-Key": settings.NESHAN_API_KEY}
 
