@@ -14,7 +14,7 @@ from .serializers import RestaurantSearchSerializer
 from django.db import transaction
 from django.utils import timezone
 from django.core.paginator import Paginator
-from .models import Restaurant, Category, Customer, Order, MenuItem
+from .models import Rating, Restaurant, Category, Customer, Order, MenuItem
 from .utils import haversine
 from .serializers import OrderCreateSerializer
 from .serializers import OrderSerializer
@@ -572,3 +572,54 @@ class RestaurantSearchView(APIView):
             ).data
         }, status=status.HTTP_200_OK)
 
+
+class OrderRatingView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        order_id = request.data.get("order_id")
+
+        if not order_id:
+            return Response(
+                {"detail": "order_id is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user = request.user
+
+        try:
+            if hasattr(user, "customer"):
+                order = Order.objects.get(
+                    id=order_id,
+                    customer=user.customer
+                )
+            elif hasattr(user, "restaurant"):
+                order = Order.objects.get(
+                    id=order_id,
+                    restaurant=user.restaurant
+                )
+            else:
+                raise PermissionDenied("User has no valid role.")
+        except Order.DoesNotExist:
+            raise NotFound("Order not found or not accessible.")
+
+        try:
+            rating = order.rating
+        except Rating.DoesNotExist:
+            return Response(
+                {
+                    "order_id": order.id,
+                    "rated": False,
+                    "rating": None
+                },
+                status=status.HTTP_200_OK
+            )
+
+        return Response(
+            {
+                "order_id": order.id,
+                "rated": True,
+                "rating": RatingSerializer(rating).data
+            },
+            status=status.HTTP_200_OK
+        )

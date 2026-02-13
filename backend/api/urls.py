@@ -22,6 +22,7 @@ urlpatterns = [
     path("categories/", GetCategoriesView.as_view(), name="get_categories"),
     path("menu/save/", SaveMenuItemView.as_view(), name="save_menu_item"),
     path("orders/", OrderCreateView.as_view(), name="create_order"),
+    path("orders/rating", OrderCreateView.as_view(), name="get_rating"),
     path("restaurants/menu/",RestaurantMenuGroupedView.as_view()),
     path("restaurants/search/", RestaurantSearchView.as_view()),
 
