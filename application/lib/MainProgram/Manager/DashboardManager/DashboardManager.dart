@@ -123,7 +123,7 @@ class _DashboardManagerState extends ConsumerState<DashboardManager>
                     alignment: AlignmentDirectional.centerStart,
                     child: Text(
                       titleText,
-                      key: ValueKey(titleText), // 👈 IMPORTANT
+                      key: ValueKey(titleText),
                       style: textTheme.bodyLarge,
                     ),
                   ),
@@ -142,7 +142,12 @@ class _DashboardManagerState extends ConsumerState<DashboardManager>
                     SizedBox(width: 16),
                     FlexSwitch(
                       value: flexTest,
-                      onChanged: (value) => setState(() => flexTest = value),
+                      onChanged: (value) {
+                        setState(() {
+                          flexTest = value;
+                        });
+                        ManagerRepo().updateIsOpen(isOpen: value);
+                      },
                       thumbColor: AppColors.lightGray,
                       activeThumbColor: AppColors.lightGray,
                       inactiveThumbColor: AppColors.lightGray,

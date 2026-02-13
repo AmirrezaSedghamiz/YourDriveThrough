@@ -142,11 +142,11 @@ class _CustomerHomePageState extends ConsumerState<CustomerHomePage> {
                     itemBuilder: (ctx, r, i) => _RestaurantCard(
                       r: r,
                       onSelect: () {
-                          var route = AppRoutes.fade(
-                            RestaurantMenu(restaurantId: r.id ?? -1),
-                          );
-                          NavigationService.push(route);
-                        },
+                        var route = AppRoutes.fade(
+                          RestaurantMenu(restaurantId: r.id ?? -1),
+                        );
+                        NavigationService.push(route);
+                      },
                     ),
                     firstPageProgressIndicatorBuilder: (_) =>
                         _RestaurantCardSkeleton(),

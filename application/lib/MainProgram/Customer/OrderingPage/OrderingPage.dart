@@ -107,6 +107,7 @@ class _UserOrderHistoryState extends State<UserOrderHistory>
           "Orders",
           style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800),
         ),
+        scrolledUnderElevation: 0
       ),
       body: RefreshIndicator(
         onRefresh: () async {

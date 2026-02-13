@@ -1,7 +1,11 @@
 import 'dart:io';
 
 import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
+import 'package:application/GlobalWidgets/NavigationServices/NavigationService.dart';
+import 'package:application/GlobalWidgets/NavigationServices/RouteFactory.dart';
+import 'package:application/Handlers/TokenHandler.dart';
 import 'package:application/MainProgram/Customer/Profile/ProfileViewModel.dart';
+import 'package:application/MainProgram/Login/Login.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -49,11 +53,45 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       }
     });
 
+    Future<void> _confirmLogOut(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required VoidCallback onYes,
+  }) async {
+    final t = Theme.of(context).textTheme;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title, style: t.titleLarge),
+        content: Text(message, style: t.bodyMedium),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              "Log Out",
+              style: t.labelLarge?.copyWith(color: AppColors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (ok == true) onYes();
+  }
+
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
         backgroundColor: AppColors.white,
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: true,
         title: Text("Profile", style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
       ),
@@ -136,8 +174,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             // Logout button
             GestureDetector(
               onTap: () {
-                // user will wire their logout logic.
-                vm.logout();
+                _confirmLogOut(
+                context,
+                title: "Log out",
+                message:
+                    "You will be logged out of the application and need to log in again for using this application. Continue",
+                onYes: () {
+                  TokenStore.clearTokens();
+                  var route = AppRoutes.fade(LoginPage());
+                  NavigationService.popAllAndPush(route);
+                },
+              );
               },
               child: Container(
                 height: 52,
