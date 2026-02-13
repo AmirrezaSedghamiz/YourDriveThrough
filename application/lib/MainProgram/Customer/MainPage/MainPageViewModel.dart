@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:application/GlobalWidgets/PermissionHandlers/Location/Location.dart';
+import 'package:application/Handlers/Repository/CustomerRepo.dart';
 import 'package:application/MainProgram/Customer/MainPage/MainPageState.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -117,24 +119,26 @@ class CustomerHomeViewModel extends Notifier<CustomerHomeState> {
 
     try {
       await Future.delayed(const Duration(milliseconds: 350));
-      final updated = state.orders.map((o) {
-        if (o.id != orderId) return o;
-        if (o.status != OrderStatus.done) return o;
+      final updated = state.orders
+          .map((o) {
+            if (o.id != orderId) return o;
+            if (o.status != OrderStatus.done) return o;
 
-        // rebuild (no copyWith assumptions)
-        return Order(
-          id: o.id,
-          customerId: o.customerId,
-          restaurantId: o.restaurantId,
-          customerPhone: o.customerPhone,
-          restaurantName: o.restaurantName,
-          status: OrderStatus.recieved,
-          createdAt: o.createdAt,
-          expectedDuration: o.expectedDuration,
-          total: o.total,
-          items: o.items,
-        );
-      }).toList(growable: false);
+            // rebuild (no copyWith assumptions)
+            return Order(
+              id: o.id,
+              customerId: o.customerId,
+              restaurantId: o.restaurantId,
+              customerPhone: o.customerPhone,
+              restaurantName: o.restaurantName,
+              status: OrderStatus.recieved,
+              createdAt: o.createdAt,
+              expectedDuration: o.expectedDuration,
+              total: o.total,
+              items: o.items,
+            );
+          })
+          .toList(growable: false);
 
       state = state.copyWith(orders: updated, clearWorkingOrder: true);
     } catch (e) {
@@ -149,8 +153,17 @@ class CustomerHomeViewModel extends Notifier<CustomerHomeState> {
 
   Future<void> _fetchRecommendedPage(int pageKey) async {
     try {
-      await Future.delayed(const Duration(milliseconds: 450));
-      final newItems = _mockRestaurants(page: pageKey);
+      // await Future.delayed(const Duration(milliseconds: 450));
+      // final newItems = _mockRestaurants(page: pageKey);
+      final loc = await LocationService().getUserLocation();
+      print("loc = " + loc.data.toString());
+      if (loc.data == null) return;
+      final newItems = await CustomerRepo().getRestaurantList(
+        pageSize: _pageSize,
+        pageKey: pageKey,
+        longitude: loc.data!.longitude!.abs(),
+        latitude: loc.data!.latitude!.abs(),
+      );
 
       final isLastPage = newItems.length < _pageSize;
       if (isLastPage) {
@@ -189,10 +202,7 @@ class CustomerHomeViewModel extends Notifier<CustomerHomeState> {
   // Mock data
   // ------------------------
 
-  List<RestaurantInfo> _mockRestaurants({
-    required int page,
-    String? filter,
-  }) {
+  List<RestaurantInfo> _mockRestaurants({required int page, String? filter}) {
     final rnd = Random(page * 999);
     final base = List.generate(_pageSize, (i) {
       final id = page * 100 + i;
@@ -242,14 +252,7 @@ class CustomerHomeViewModel extends Notifier<CustomerHomeState> {
         createdAt: DateTime.now(),
         expectedDuration: 30,
         total: 18,
-        items: [
-          ItemOrder(
-            id: 2,
-            itemName: "Fries",
-            quantity: 1,
-            special: "",
-          ),
-        ],
+        items: [ItemOrder(id: 2, itemName: "Fries", quantity: 1, special: "")],
       ),
     ];
   }
@@ -257,5 +260,5 @@ class CustomerHomeViewModel extends Notifier<CustomerHomeState> {
 
 final customerHomeProvider =
     NotifierProvider<CustomerHomeViewModel, CustomerHomeState>(
-  () => CustomerHomeViewModel(),
-);
+      () => CustomerHomeViewModel(),
+    );

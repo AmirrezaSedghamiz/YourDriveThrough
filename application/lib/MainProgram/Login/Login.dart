@@ -225,16 +225,16 @@ class _LoginPageState extends ConsumerState<LoginPage>
             //   value: state.rememberMe,
             //   onChanged: (_) => viewModel.toggleRememberMe(),
             // ),
-            TextButton(
-              onPressed: () {},
-              child: Text(
-                "Forgot password?",
-                style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
-                ),
-              ),
-            ),
+            // TextButton(
+            //   onPressed: () {},
+            //   child: Text(
+            //     "Forgot password?",
+            //     style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+            //       fontWeight: FontWeight.w600,
+            //       color: AppColors.primary,
+            //     ),
+            //   ),
+            // ),
           ],
         ),
       ],
