@@ -274,7 +274,9 @@ class SaveMenuItemView(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
+@extend_schema(
+    request = RestaurantMenuRequestSerializer(many=False)
+)
 class RestaurantMenuGroupedView(APIView):
     permission_classes = []
 
@@ -317,6 +319,7 @@ class RestaurantMenuGroupedView(APIView):
 
             response_data.append({
                 "id": category_id,
+                "name": category_name,
                 "category": category_name,
                 "items": MenuItemSerializer(category_items, many=True).data,
             })
@@ -646,6 +649,9 @@ class OrderRatingView(APIView):
         )
 
 
+@extend_schema(
+    request=MenuSyncSerializer(many = False)
+)
 class MeMenuSyncView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
