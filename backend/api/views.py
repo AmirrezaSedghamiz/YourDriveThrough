@@ -24,8 +24,9 @@ from .serializers import RestaurantSearchSerializer
 from .serializers import MenuSyncSerializer
 from .serializers import OrderCreateSerializer
 from .serializers import OrderSerializer
+from .serializers import ReorderSerializer
 from .serializers import MyOrdersFilterSerializer
-from .models import Rating, Restaurant, Category, Customer, Order, MenuItem
+from .models import Rating, Restaurant, Category, Customer, Order, MenuItem, OrderItem
 
 
 class MeAuthView(APIView):
@@ -741,3 +742,136 @@ class MeMenuSyncView(APIView):
             {"message": "Menu synced successfully"},
             status=status.HTTP_200_OK
         )
+
+
+class ReorderView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get_neshan_duration(self, origin_lat, origin_lon, dest_lat, dest_lon):
+        if origin_lat < 0 or origin_lon < 0 or dest_lat < 0 or dest_lon < 0:
+            return 0
+
+        url = (
+            "https://api.neshan.org/v1/distance-matrix"
+            f"?type=car&origins={origin_lat},{origin_lon}"
+            f"&destinations={dest_lat},{dest_lon}"
+        )
+        headers = {"Api-Key": settings.NESHAN_API_KEY}
+
+        try:
+            response = requests.get(url, headers=headers, timeout=5)
+            response.raise_for_status()
+            data = response.json()
+            return data["rows"][0]["elements"][0]["duration"]["value"]
+        except Exception:
+            return 0
+
+    def post(self, request):
+        serializer = ReorderSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        order_id = serializer.validated_data["order_id"]
+        lat = serializer.validated_data["latitude"]
+        lon = serializer.validated_data["longitude"]
+        allow_partial = serializer.validated_data["allow_partial"]
+
+        # Only customers can reorder
+        if not hasattr(request.user, "customer"):
+            return Response(
+                {"detail": "Only customers can reorder."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        customer = request.user.customer
+
+        old_order = get_object_or_404(
+            Order.objects.prefetch_related("orderitem_set__item"),
+            id=order_id,
+            customer=customer,
+        )
+
+        restaurant = old_order.restaurant
+
+        if not getattr(restaurant, "is_open", True):
+            return Response(
+                {"detail": "Restaurant is currently closed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        old_items = old_order.orderitem_set.all()
+
+        unavailable_items = []
+        valid_items = []
+
+        for order_item in old_items:
+            menu_item = order_item.item
+            if not menu_item.is_active:
+                unavailable_items.append({
+                    "id": menu_item.id,
+                    "name": menu_item.name,
+                })
+            else:
+                valid_items.append(order_item)
+
+        if not allow_partial and unavailable_items:
+            return Response(
+                {
+                    "detail": "Cannot reorder because some items are unavailable.",
+                    "unavailable_items": unavailable_items,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not valid_items:
+            return Response(
+                {
+                    "detail": "None of the items are available anymore.",
+                    "unavailable_items": unavailable_items,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        total = 0
+        max_prep_duration = 0
+
+        for order_item in valid_items:
+            menu_item = order_item.item
+            qty = order_item.quantity
+            total += menu_item.price * qty
+            max_prep_duration = max(max_prep_duration, menu_item.expected_duration)
+
+        travel_duration = self._get_neshan_duration(
+            lat, lon, float(restaurant.latitude), float(restaurant.longitude)
+        )
+
+        expected_arrival_time = (max_prep_duration * 60) + travel_duration
+
+        with transaction.atomic():
+            new_order = Order.objects.create(
+                customer=customer,
+                restaurant=restaurant,
+                start=timezone.now(),
+                status="pending",
+                total=total,
+                expected_duration=max_prep_duration,
+                expected_arrival_time=expected_arrival_time,
+            )
+
+            for old_item in valid_items:
+                OrderItem.objects.create(
+                    order=new_order,
+                    item=old_item.item,
+                    quantity=old_item.quantity,
+                    special=old_item.special,
+                )
+
+        response_data = {
+            "message": "Order recreated successfully",
+            "order": OrderSerializer(new_order).data,
+        }
+
+        if unavailable_items and allow_partial:
+            response_data["warning"] = "Some items were unavailable and were not included"
+            response_data["unavailable_items"] = unavailable_items
+
+        return Response(response_data, status=status.HTTP_201_CREATED)

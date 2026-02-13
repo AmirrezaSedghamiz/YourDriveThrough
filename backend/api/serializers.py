@@ -190,16 +190,21 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         fields = ("restaurant", "items", "latitude", "longitude")
 
     def validate(self, data):
-        items = data["items"]
+        items = data.get("items", [])
         restaurant = data["restaurant"]
 
+        if not items:
+            raise serializers.ValidationError("Order must have at least one item.")
+
+        item_ids = [i.get("menu_item") for i in items if i.get("menu_item") is not None]
+
         menu_items = MenuItem.objects.filter(
-            id__in=[i["menu_item"] for i in items],
+            id__in=item_ids,
             is_active=True,
-            restaurant=restaurant,
+            category__restaurant=restaurant,
         )
 
-        if menu_items.count() != len(items):
+        if menu_items.count() != len(item_ids):
             raise serializers.ValidationError(
                 "All items must belong to the restaurant and be active."
             )
@@ -420,3 +425,11 @@ class CategorySyncSerializer(serializers.Serializer):
 
 class MenuSyncSerializer(serializers.Serializer):
     categories = CategorySyncSerializer(many=True)
+
+
+class ReorderSerializer(serializers.Serializer):
+    order_id = serializers.IntegerField()
+    latitude = serializers.FloatField()
+    longitude = serializers.FloatField()
+    allow_partial = serializers.BooleanField(default=False)
+

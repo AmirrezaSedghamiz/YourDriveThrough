@@ -100,4 +100,4 @@ class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
     item = models.ForeignKey(MenuItem, on_delete=models.CASCADE)
     quantity = models.IntegerField()
-    special = models.CharField(max_length=1024)
+    special = models.CharField(max_length=1024,null=True, blank=True)
