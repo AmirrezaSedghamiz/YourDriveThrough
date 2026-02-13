@@ -275,7 +275,6 @@ class OrderCreateSerializer(serializers.Serializer):
                     travel_seconds = elements[0].get("duration", {}).get("value", 0)
                     expected_arrival_time = int(travel_seconds)
             except requests.RequestException:
-                # Fail gracefully (no crash)
                 expected_arrival_time = 0
 
         with transaction.atomic():
@@ -302,8 +301,7 @@ class OrderCreateSerializer(serializers.Serializer):
                 )
 
             OrderItem.objects.bulk_create(order_items)
-
-        return order
+        return self.data
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -328,20 +326,20 @@ class OrderSerializer(serializers.ModelSerializer):
         many=True,
         read_only=True
     )
-    restaurant_name = serializers.CharField(source="restaurant.name", read_only=True)
-    customer_phone = serializers.CharField(source="customer.user.phone", read_only=True)
+    restaurant = serializers.IntegerField(source = "restaurant.id",read_only=True)
+    customer = serializers.IntegerField(source = "customer.id",read_only=True)
 
     class Meta:
         model = Order
         fields = (
             "id",
+            "restaurant",
+            "customer",
             "status",
             "total",
             "start",
             "expected_duration",
             "expected_arrival_time",
-            "restaurant_name",
-            "customer_phone",
             "items",
         )
 
