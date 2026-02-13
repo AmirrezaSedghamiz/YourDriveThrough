@@ -64,8 +64,6 @@ class OrderViewModel extends Notifier<OrderState> {
     try {
       state = state.copyWith(isSubmitting: true, clearError: true);
 
-      // TODO: call your API to finalize all submitted orders or the latest one
-      // await OrderRepo().finalize(...);
       List<Map<int, int>> orders = [];
       for (var i in state.submittedOrders) {
         for (var j in i.lines) {

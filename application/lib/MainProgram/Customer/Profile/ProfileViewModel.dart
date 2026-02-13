@@ -34,6 +34,7 @@ class ProfileViewModel extends Notifier<ProfileState> {
 
       state = state.copyWith(
         username: (data as UserInfo).username,
+        image: data.image,
         isLoading: false,
       );
     } catch (e) {
@@ -48,7 +49,7 @@ class ProfileViewModel extends Notifier<ProfileState> {
         image: state.imageFile,
       );
       if (data != ConnectionStates.Success) {
-        state = state.copyWith(error: "This username is taken");
+        state = state.copyWith(error: "This username is taken!");
         return;
       }
     }

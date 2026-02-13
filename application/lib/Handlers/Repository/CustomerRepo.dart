@@ -159,6 +159,7 @@ class CustomerRepo {
         "phone": kwargs['username'],
       });
     }
+    print(data.toString());
     return await HttpClient.instance.post(
       'me/customer/profile/update/',
       options: options,

@@ -12,11 +12,17 @@ import 'package:application/MainProgram/Manager/Menu/MenuState.dart';
 import 'package:application/MainProgram/Manager/Menu/MenuViewModel.dart';
 import 'package:application/SourceDesign/Models/Category.dart';
 import 'package:application/SourceDesign/Models/Item.dart';
+import 'package:application/SourceDesign/Models/RestauarantInfo.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class RestaurantSettings extends ConsumerStatefulWidget {
-  const RestaurantSettings({super.key});
+  const RestaurantSettings({
+    super.key,
+    required this.callback,
+  });
+
+  final VoidCallback callback;
 
   @override
   ConsumerState<RestaurantSettings> createState() => _RestaurantSettingsState();
@@ -26,10 +32,6 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
     with AutomaticKeepAliveClientMixin<RestaurantSettings> {
   late final TextEditingController _nameController;
 
-  @override
-  void initState() {
-    super.initState();
-  }
 
   @override
   void dispose() {
@@ -52,7 +54,7 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final s = ref.read(restaurantSettingsViewModelProvider);
       _nameController = TextEditingController(text: s.restaurantName);
-
+      
       // snack/errors
       ref.listen<RestaurantSettingsState>(restaurantSettingsViewModelProvider, (
         prev,
@@ -74,7 +76,7 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
 
         // keep controller in sync if you ever load from API later
         if (_nameController.text != next.restaurantName) {
-          _nameController.text = next.restaurantName;
+          _nameController.text = next.restaurantName ?? "";
         }
       });
     });
@@ -146,7 +148,7 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
                 TextField(
                   controller: TextEditingController(text: state.restaurantName)
                     ..selection = TextSelection.collapsed(
-                      offset: state.restaurantName.length,
+                      offset: state.restaurantName!.length,
                     ),
                   onChanged: vm.setRestaurantName,
                   decoration: InputDecoration(
@@ -209,7 +211,7 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          state.currentAddress,
+                          state.currentAddress ?? "",
                           style: t.bodyMedium?.copyWith(
                             color: Colors.black.withOpacity(0.75),
                           ),
@@ -335,7 +337,6 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
                     ),
                   ),
                 ),
-
 
                 SizedBox(
                   width: double.infinity,

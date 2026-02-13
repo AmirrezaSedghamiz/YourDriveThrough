@@ -35,8 +35,6 @@ class RestaurantMenuViewModel extends Notifier<RestaurantMenuState> {
       state = state.copyWith(isLoading: true, clearError: true);
 
       final res = await ManagerRepo().getMenu(restaurantId: id);
-      print(res);
-      print(res! is List<Category>);
       if (res is ConnectionStates) {
         state = state.copyWith(error: "Unexpected error!", isLoading: false);
         return;

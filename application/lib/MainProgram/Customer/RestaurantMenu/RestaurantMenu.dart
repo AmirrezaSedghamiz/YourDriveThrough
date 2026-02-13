@@ -1,7 +1,9 @@
 // RestaurantMenu.dart
 import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
 import 'package:application/GlobalWidgets/NavigationServices/NavigationService.dart';
+import 'package:application/GlobalWidgets/NavigationServices/RouteFactory.dart';
 import 'package:application/GlobalWidgets/ReusableComponents/AppBar.dart';
+import 'package:application/MainProgram/Customer/MainPage/MainPage.dart';
 import 'package:application/MainProgram/Customer/RestaurantMenu/OrderViewModel.dart';
 import 'package:application/MainProgram/Manager/DashboardManager/DashboardManager.dart';
 import 'package:application/SourceDesign/Models/Item.dart';
@@ -383,7 +385,10 @@ class _OrdersSheet extends ConsumerWidget {
                               final ok = await _confirmFinalize(context);
                               if (ok == true) {
                                 await orderVm.finalizeOrder();
-                                if (context.mounted) Navigator.pop(context);
+                                if (context.mounted) {
+                                  NavigationService.popAllAndPush(
+                                  AppRoutes.fade(CustomerHomePage()));
+                                }
                               }
                             },
                       child: Container(

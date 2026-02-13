@@ -3,6 +3,7 @@ import 'dart:io';
 class ProfileState {
   final String username;
   final String password;
+  final String? image;
   final File? imageFile;
 
   final bool isEditing;
@@ -10,7 +11,8 @@ class ProfileState {
   final bool isLoading; // ✅ NEW
   final String? error;
 
-  const ProfileState({
+  const ProfileState( {
+    this.image,
     this.username = "",
     this.password = "",
     this.imageFile,
@@ -29,9 +31,11 @@ class ProfileState {
     bool? isSaving,
     bool? isLoading, // ✅ NEW
     String? error,
+    String? image,
     bool clearError = false,
   }) {
     return ProfileState(
+      image : image ?? this.image,
       username: username ?? this.username,
       password: password ?? this.password,
       imageFile: setImageNull ? null : (imageFile ?? this.imageFile),
