@@ -440,3 +440,13 @@ class ReorderSerializer(serializers.Serializer):
     longitude = serializers.FloatField()
     allow_partial = serializers.BooleanField(default=False)
 
+
+class CustomerUpdateSerializer(serializers.Serializer):
+    phone = serializers.CharField(required=False, max_length=20)
+    image = serializers.ImageField(required=False, allow_null=True)
+
+    def validate_phone(self, value):
+        user = self.context["request"].user
+        if User.objects.exclude(id=user.id).filter(phone=value).exists():
+            raise serializers.ValidationError("This phone is already in use.")
+        return value
