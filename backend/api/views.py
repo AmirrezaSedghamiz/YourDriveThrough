@@ -15,7 +15,7 @@ from django.core.paginator import Paginator
 from django.conf import settings
 from drf_spectacular.utils import extend_schema
 from collections import defaultdict
-from .serializers import CustomerSerializer, LoginSerializer, RatingCreateSerializer, RatingSerializer, MenuSyncSerializer, RestaurantUpdateSerializer, UserSerializer
+from .serializers import CustomerSerializer, CustomerUpdateSerializer, LoginSerializer, RatingCreateSerializer, RatingSerializer, MenuSyncSerializer, RestaurantUpdateSerializer, UserSerializer
 from .serializers import SignupSerializer
 from .serializers import RestaurantSerializer
 from .serializers import ClosestRestaurantsSerializer
@@ -976,4 +976,51 @@ class GetClosestRestaurants2View(APIView):
                 "has_previous": page_obj.has_previous(),
             },
             "results": serialized_data
+        }, status=status.HTTP_200_OK)
+
+
+class CustomerMeView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        try:
+            customer = user.customer
+        except Customer.DoesNotExist:
+            return Response({"detail": "Customer profile not found."}, status=404)
+
+        return Response({
+            "phone": user.phone,
+            "image": customer.image.url if customer.image else None,
+        })
+
+
+class CustomerUpdateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        try:
+            customer = request.user.customer
+        except Customer.DoesNotExist:
+            return Response({"detail": "Customer profile not found."}, status=404)
+
+        serializer = CustomerUpdateSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+
+        data = serializer.validated_data
+
+        # Update phone if provided
+        if "phone" in data:
+            request.user.phone = data["phone"]
+            request.user.save(update_fields=["phone"])
+
+        # Update image if provided
+        if "image" in data:
+            customer.image = data["image"]
+            customer.save(update_fields=["image"])
+
+        return Response({
+            "message": "Customer info updated successfully",
+            "phone": request.user.phone,
+            "image": customer.image.url if customer.image else None,
         }, status=status.HTTP_200_OK)
