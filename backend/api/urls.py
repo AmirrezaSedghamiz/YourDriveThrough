@@ -4,7 +4,6 @@ from .views import LoginView, MeAuthView, MeMenuSyncView, MeView, OrderStatusUpd
 from .views import SignupView
 from .views import RestaurantMeUpdateView
 from .views import GetClosestRestaurantsView
-from .views import GetCategoriesView
 from .views import SaveMenuItemView
 from .views import OrderCreateView
 from .views import ActiveRestaurantOrdersView
@@ -20,7 +19,6 @@ urlpatterns = [
     path("login/", LoginView.as_view(), name="login"),
     path("signup/", SignupView.as_view(), name="signup"),
     path("restaurant/get_closest/", GetClosestRestaurantsView.as_view(), name="get_closest_restaurants"),
-    path("categories/", GetCategoriesView.as_view(), name="get_categories"),
     path("menu/save/", SaveMenuItemView.as_view(), name="save_menu_item"),
     path("orders/", OrderCreateView.as_view(), name="create_order"),
     path("orders/rating", OrderRatingView.as_view(), name="get_rating"),
