@@ -29,8 +29,6 @@ class CustomerRepo {
   }
 
   Future<dynamic> _getRestaurantListHandler(Response response) async {
-    print(response.data);
-    print(response.statusCode);
     if (response.statusCode == 200) {
       List<RestaurantInfo> restaurants = [];
       for (var i in response.data['results']) {
@@ -99,8 +97,6 @@ class CustomerRepo {
   }
 
   Future<dynamic> _getRestaurantMenuHandler(Response response) async {
-    print(response.data);
-    print(response.statusCode);
     if (response.statusCode == 200) {
       return ConnectionStates.Success;
     } else if (response.statusCode == 400) {

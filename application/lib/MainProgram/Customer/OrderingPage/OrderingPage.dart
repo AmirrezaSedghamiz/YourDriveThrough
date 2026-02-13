@@ -118,6 +118,7 @@ class _UserOrderHistoryState extends State<UserOrderHistory>
         onRefresh: () async {
           _activeOrder = null;
           _pagingController.refresh();
+          setState(() {});
         },
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(
@@ -203,6 +204,8 @@ class _UserOrderHistoryState extends State<UserOrderHistory>
                         order: order,
                         onReorder: () async {
                           try {
+                            final ok = await _confirmReorder(context);
+                            if (ok == false) return;
                             final loc = await LocationService()
                                 .getUserLocation();
                             if (loc.data == null) return;
@@ -218,7 +221,11 @@ class _UserOrderHistoryState extends State<UserOrderHistory>
                               );
                               return;
                             }
-                            _pagingController.itemList!.insert(0, data);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Reorder successful!")),
+                            );
+                            _activeOrders.insert(0, data);
+                            setState(() {});
                           } catch (e) {
                             if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -234,6 +241,34 @@ class _UserOrderHistoryState extends State<UserOrderHistory>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<bool?> _confirmReorder(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text("Reorder?", style: t.titleMedium),
+        content: Text(
+          "Are you sure you want to reorder this order?",
+          style: t.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text("Cancel", style: t.labelLarge),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              "Yes, reorder",
+              style: t.labelLarge?.copyWith(color: AppColors.white),
+            ),
+          ),
+        ],
       ),
     );
   }

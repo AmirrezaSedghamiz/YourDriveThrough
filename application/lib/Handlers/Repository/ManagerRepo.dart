@@ -118,8 +118,6 @@ class ManagerRepo {
   }
 
   Future<dynamic> _getMenuHandler(Response response) async {
-    // print(response.data);
-    print(response.statusCode);
     // await _saveDebugJson(response.data, 'menu');
     if (response.statusCode == 200) {
       return categoriesFromResponse(response.data);
@@ -165,8 +163,7 @@ class ManagerRepo {
   }
 
   Future<dynamic> _getRestaurantProfileHandler(Response response) async {
-    print(response.data);
-    print(response.statusCode);
+
     if (response.statusCode == 200) {
       return RestaurantInfo.fromMap(response.data['restaurant']);
     } else if (response.statusCode == 400) {
@@ -222,8 +219,6 @@ class ManagerRepo {
   }
 
   Future<dynamic> _updateIsOpenHandler(Response response) async {
-    print(response.data);
-    print(response.statusCode);
     if (response.statusCode == 200) {
       return ConnectionStates.Success;
     } else if (response.statusCode == 400) {

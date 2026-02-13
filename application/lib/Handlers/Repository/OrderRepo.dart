@@ -28,8 +28,6 @@ class OrderRepo {
   }
 
   Future<dynamic> _getOrderListHandler(Response response) async {
-    print(response.data);
-    print(response.statusCode);
     if (response.statusCode == 200) {
       List<Order> orders = [];
       for (var i in response.data["results"]) {
@@ -87,7 +85,6 @@ class OrderRepo {
   }
 
   Future<dynamic> _getAllCategoriesHandler(Response response) async {
-    
     if (response.statusCode == 200) {
       List<Order> orders = [];
       for (var i in response.data["results"]) {
@@ -144,13 +141,15 @@ class OrderRepo {
       headers: {'Authorization': await TokenStore.getAccessToken()},
     );
     return await HttpClient.instance.post(
-      'orders/status/update/',
+      'me/orders/update_status/',
       options: options,
       data: {'new_status': kwargs['new_status'], 'order_id': kwargs['id']},
     );
   }
 
   Future<dynamic> _updateStatusHandler(Response response) async {
+    print(response.data);
+    print(response.statusCode);
     if (response.statusCode == 200) {
       return ConnectionStates.Success;
     } else if (response.statusCode == 400) {
@@ -299,7 +298,7 @@ class OrderRepo {
     });
   }
   ////////////////////////////////////////////////////////
-  
+
   Future<Response> _reOrderRequest(Map<String, dynamic> kwargs) async {
     Options options = Options(
       followRedirects: false,
@@ -312,9 +311,9 @@ class OrderRepo {
       'me/orders/reorder/',
       options: options,
       data: {
-          'order_id': kwargs['id'],
-          'longitude': kwargs['longitude'],
-          'latitude': kwargs['latitude'],
+        'order_id': kwargs['id'],
+        'longitude': kwargs['longitude'],
+        'latitude': kwargs['latitude'],
       },
     );
   }
@@ -345,11 +344,15 @@ class OrderRepo {
     return handleErrors(kwargs, _reOrderRequest, _reOrderHandler);
   }
 
-  Future<dynamic> reOrder({required int orderId, required num latitude,
-    required num longitude,}) {
+  Future<dynamic> reOrder({
+    required int orderId,
+    required num latitude,
+    required num longitude,
+  }) {
     return _reOrderKwargBuilder({
       'id': orderId,
-    'longitude': longitude,
-      'latitude': latitude,});
+      'longitude': longitude,
+      'latitude': latitude,
+    });
   }
 }

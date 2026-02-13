@@ -105,7 +105,11 @@ class CustomerHomeViewModel extends Notifier<CustomerHomeState> {
   // ------------------------
 
   Future<void> refreshOrders() async {
-    state = state.copyWith(ordersLoading: true, clearOrdersError: true);
+    state = state.copyWith(
+      ordersLoading: true,
+      clearOrdersError: true,
+      orders: const [], // <-- clear so your skeleton shows
+    );
     try {
       final data = (await OrderRepo().getOrderList(
         pageKey: 1,
@@ -123,7 +127,7 @@ class CustomerHomeViewModel extends Notifier<CustomerHomeState> {
 
     try {
       final data = await OrderRepo().updateStatus(
-        newStatus: "received",
+        newStatus: "recieved",
         orderId: orderId,
       );
       refreshOrders();
