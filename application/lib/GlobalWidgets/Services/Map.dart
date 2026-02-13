@@ -21,10 +21,11 @@ import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:location/location.dart';
 
 class MapBuilder extends StatefulWidget {
-  const MapBuilder({super.key, required this.username, this.image});
+  const MapBuilder({super.key, required this.username, this.image, required this.callBackFunction});
 
   final String username;
   final File? image;
+  final VoidCallback? callBackFunction;
 
   @override
   State<MapBuilder> createState() => _MapBuilderState();
@@ -149,12 +150,9 @@ class _MapBuilderState extends State<MapBuilder> {
 
               MapSubmitFab(
                 isLoading: isLoading,
-                enabled:
-                    !(isLoading ||selectedLocation == null),
+                enabled: !(isLoading || selectedLocation == null),
                 onPressed: () async {
-                  print("SDFSDF");
                   setState(() => isLoading = true);
-                  print("WEEEEEEEEEEEEEe");
                   final address = await HttpClient.reverseGeoCoding.get(
                     'reverse?lat=${selectedLocation!.latitude}&lng=${selectedLocation!.longitude}',
                     options: HttpClient.globalHeader,
@@ -162,7 +160,9 @@ class _MapBuilderState extends State<MapBuilder> {
                   await ManagerRepo()
                       .fillRestaurantProfile(
                         username: widget.username,
-                        longitude: formatCoordinate(selectedLocation!.longitude),
+                        longitude: formatCoordinate(
+                          selectedLocation!.longitude,
+                        ),
                         latitude: formatCoordinate(selectedLocation!.latitude),
                         image: widget.image,
                         address: address.data['formatted_address'],
@@ -171,7 +171,7 @@ class _MapBuilderState extends State<MapBuilder> {
                         if (value == ConnectionStates.Success) {
                           WidgetsBinding.instance.addPostFrameCallback((_) {
                             NavigationService.popAllAndPush(
-                              AppRoutes.fade(DashboardManager(initialPage: 0,)),
+                              AppRoutes.fade(DashboardManager(initialPage: 0)),
                             );
                           });
                         }

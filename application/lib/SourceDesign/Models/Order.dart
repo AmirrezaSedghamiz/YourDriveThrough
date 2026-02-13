@@ -97,4 +97,6 @@ class Order {
   String toJson() => json.encode(toMap());
   factory Order.fromJson(String source) =>
       Order.fromMap(json.decode(source));
+
+  copyWith({required OrderStatus status}) {}
 }

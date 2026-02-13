@@ -1,35 +1,44 @@
-import 'package:application/SourceDesign/Enums/AccountTypes.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:application/SourceDesign/Models/Order.dart';
 
-class MainPageState {
-  final bool hasActiveOrder;
-  final bool isInPreparingState;
-  final bool isReady;
-  final bool hasLocationOn;
-  final bool isInLoading;
+class CustomerHomeState {
+  final String searchQuery;
 
-  MainPageState({
-    this.hasActiveOrder = false,
-    this.isInPreparingState = false, 
-    this.isReady = false,
-    this.hasLocationOn = false,
-    this.isInLoading = false
+  final List<Order> orders;
+  final bool ordersLoading;
+  final int? workingOrderId;
+  final String? ordersError;
+
+  final bool initialized;
+
+  const CustomerHomeState({
+    this.searchQuery = "",
+    this.orders = const [],
+    this.ordersLoading = false,
+    this.workingOrderId,
+    this.ordersError,
+    this.initialized = false,
   });
 
+  bool get showSearchResults => searchQuery.trim().isNotEmpty;
 
-  MainPageState copyWith({
-    bool? hasActiveOrder,
-    bool? isInPreparingState,
-    bool? isReady,
-    bool? hasLocationOn,
-    bool? isInLoading,
+  CustomerHomeState copyWith({
+    String? searchQuery,
+    List<Order>? orders,
+    bool? ordersLoading,
+    int? workingOrderId,
+    bool clearWorkingOrder = false,
+    String? ordersError,
+    bool clearOrdersError = false,
+    bool? initialized,
   }) {
-    return MainPageState(
-      hasActiveOrder: hasActiveOrder ?? this.hasActiveOrder,
-      isInPreparingState: isInPreparingState ?? this.isInPreparingState,
-      isReady: isReady ?? this.isReady,
-      hasLocationOn: hasLocationOn ?? this.hasLocationOn,
-      isInLoading: isInLoading ?? this.isInLoading
+    return CustomerHomeState(
+      searchQuery: searchQuery ?? this.searchQuery,
+      orders: orders ?? this.orders,
+      ordersLoading: ordersLoading ?? this.ordersLoading,
+      workingOrderId:
+          clearWorkingOrder ? null : (workingOrderId ?? this.workingOrderId),
+      ordersError: clearOrdersError ? null : (ordersError ?? this.ordersError),
+      initialized: initialized ?? this.initialized,
     );
   }
 }

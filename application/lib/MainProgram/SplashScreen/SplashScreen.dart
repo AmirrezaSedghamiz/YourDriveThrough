@@ -82,7 +82,7 @@ class _SplashScreenState extends State<SplashScreen>
       if (route == null) {
         var firstRoute = AppRoutes.fade(LoginPage());
         var secondRoute = AppRoutes.fade(
-          MapBuilder(username: role["username"] ?? ""),
+          MapBuilder(username: role["username"] ?? "", callBackFunction: () {},),
         );
         NavigationService.replace(firstRoute);
         NavigationService.push(secondRoute);

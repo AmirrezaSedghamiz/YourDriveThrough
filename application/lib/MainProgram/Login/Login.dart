@@ -72,7 +72,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
         if (route == null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             NavigationService.push(
-              AppRoutes.fade(MapBuilder(username: next.username ?? "")),
+              AppRoutes.fade(MapBuilder(username: next.username ?? "" , callBackFunction: null,)),
             );
           });
           return;
