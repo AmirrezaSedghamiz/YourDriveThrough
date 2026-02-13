@@ -179,124 +179,129 @@ class OrderItemCreateSerializer(serializers.Serializer):
     quantity = serializers.IntegerField(min_value=1)
     special = serializers.CharField(required=False, allow_blank=True)
 
-class OrderCreateSerializer(serializers.ModelSerializer):
+import requests
+from django.conf import settings
+from django.utils import timezone
+from rest_framework import serializers
+from django.db import transaction
+
+class OrderItemCreateSerializer(serializers.Serializer):
+    menu_item = serializers.IntegerField()
+    quantity = serializers.IntegerField(min_value=1)
+    special = serializers.CharField(required=False, allow_blank=True)
+
+
+class OrderCreateSerializer(serializers.Serializer):
+    restaurant = serializers.IntegerField()
+    latitude = serializers.FloatField()
+    longitude = serializers.FloatField()
     items = OrderItemCreateSerializer(many=True)
 
-    latitude = serializers.FloatField(write_only=True)
-    longitude = serializers.FloatField(write_only=True)
-
-    class Meta:
-        model = Order
-        fields = ("restaurant", "items", "latitude", "longitude")
-
     def validate(self, data):
-        items = data.get("items", [])
-        restaurant = data["restaurant"]
+        request = self.context["request"]
+
+        if not hasattr(request.user, "customer"):
+            raise serializers.ValidationError("Only customers can create orders.")
+
+        items = data["items"]
+        restaurant_id = data["restaurant"]
 
         if not items:
-            raise serializers.ValidationError("Order must have at least one item.")
-
-        item_ids = [i.get("menu_item") for i in items if i.get("menu_item") is not None]
+            raise serializers.ValidationError("Order must contain at least one item.")
 
         menu_items = MenuItem.objects.filter(
-            id__in=item_ids,
+            id__in=[i["menu_item"] for i in items],
             is_active=True,
-            category__restaurant=restaurant,
-        )
+            category__restaurant_id=restaurant_id,
+        ).select_related("category")
 
-        if menu_items.count() != len(item_ids):
+        if menu_items.count() != len(items):
             raise serializers.ValidationError(
                 "All items must belong to the restaurant and be active."
             )
 
+        self._menu_items_map = {m.id: m for m in menu_items}
         return data
 
-    def _get_neshan_duration(self, origin_lat, origin_lon, dest_lat, dest_lon):
-        """
-        Returns duration in seconds using Neshan Distance Matrix API.
-        Falls back to 0 if API fails.
-        """
-        if (
-            origin_lat < 0 or origin_lon < 0 or
-            dest_lat < 0 or dest_lon < 0
-        ):
-            return 0
-
-        url = (
-            "https://api.neshan.org/v1/distance-matrix"
-            f"?type=car&origins={origin_lat:.6f},{origin_lon:.6f}"
-            f"&destinations={dest_lat:.6f},{dest_lon:.6f}"
-        )
-
-        headers = {
-            "Api-Key": settings.NESHAN_API_KEY
-        }
-
-        try:
-            response = requests.get(url, headers=headers, timeout=5)
-            response.raise_for_status()
-            data = response.json()
-
-            return data["rows"][0]["elements"][0]["duration"]["value"]
-
-        except Exception:
-            return 0
-
     def create(self, validated_data):
-        items_data = validated_data.pop("items")
-        origin_lat = validated_data.pop("latitude")
-        origin_lon = validated_data.pop("longitude")
-        restaurant = validated_data["restaurant"]
+        request = self.context["request"]
+        customer = request.user.customer
+
+        restaurant_id = validated_data["restaurant"]
+        lat = validated_data["latitude"]
+        lon = validated_data["longitude"]
+        items_data = validated_data["items"]
+
+        restaurant = Restaurant.objects.get(id=restaurant_id)
 
         total = 0
         max_duration = 0
 
-        menu_items = {
-            item.id: item
-            for item in MenuItem.objects.filter(
-                id__in=[i["menu_item"] for i in items_data]
-            )
-        }
-
         for item in items_data:
-            menu_item = menu_items[item["menu_item"]]
+            menu_item = self._menu_items_map[item["menu_item"]]
             qty = item["quantity"]
 
             total += menu_item.price * qty
-            max_duration = max(max_duration, menu_item.expected_duration)
 
-        travel_duration = self._get_neshan_duration(
-            origin_lat,
-            origin_lon,
-            float(restaurant.latitude),
-            float(restaurant.longitude),
-        )
+            if menu_item.expected_duration > max_duration:
+                max_duration = menu_item.expected_duration
 
-        expected_arrival_time = travel_duration
+        expected_arrival_time = 0
+        if (
+            restaurant.latitude is not None
+            and restaurant.longitude is not None
+            and restaurant.latitude >= 0
+            and restaurant.longitude >= 0
+            and lat >= 0
+            and lon >= 0
+        ):
+            origins = f"{lat:.6f},{lon:.6f}"
+            destinations = f"{float(restaurant.latitude):.6f},{float(restaurant.longitude):.6f}"
 
-        validated_data = validated_data.copy()
-        validated_data.pop("restaurant", None)
-        validated_data.pop("total", None)
-        validated_data.pop("start", None)
-        validated_data.pop("expected_duration", None)
-        validated_data.pop("expected_arrival_time", None)
-
-        order = Order.objects.create(
-            restaurant=restaurant,
-            expected_duration=max_duration,
-            expected_arrival_time=expected_arrival_time,
-            total=total,
-            start=timezone.now(),
-            **validated_data,
-        )
-
-        for item in items_data:
-            OrderItem.objects.create(
-                order=order,
-                item=menu_items[item["menu_item"]],
-                quantity=item["quantity"],
-                special=item.get("special", ""),
+            url = (
+                "https://api.neshan.org/v1/distance-matrix"
+                f"?type=car&origins={origins}&destinations={destinations}"
             )
+
+            headers = {"Api-Key": settings.NESHAN_API_KEY}
+
+            try:
+                response = requests.get(url, headers=headers, timeout=5)
+                response.raise_for_status()
+                data = response.json()
+
+                elements = data.get("rows", [{}])[0].get("elements", [])
+                if elements:
+                    travel_seconds = elements[0].get("duration", {}).get("value", 0)
+                    expected_arrival_time = int(travel_seconds)
+            except requests.RequestException:
+                # Fail gracefully (no crash)
+                expected_arrival_time = 0
+
+        with transaction.atomic():
+            order = Order.objects.create(
+                customer=customer,
+                restaurant=restaurant,
+                start=timezone.now(),
+                expected_duration=max_duration,
+                expected_arrival_time=expected_arrival_time,
+                status="pending",
+                total=total,
+            )
+
+            order_items = []
+            for item in items_data:
+                menu_item = self._menu_items_map[item["menu_item"]]
+                order_items.append(
+                    OrderItem(
+                        order=order,
+                        item=menu_item,
+                        quantity=item["quantity"],
+                        special=item.get("special", ""),
+                    )
+                )
+
+            OrderItem.objects.bulk_create(order_items)
 
         return order
 
