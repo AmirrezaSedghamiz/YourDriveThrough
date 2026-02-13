@@ -1,16 +1,57 @@
+import 'package:application/GlobalWidgets/InternetManager/ConnectionStates.dart';
 import 'package:application/GlobalWidgets/PermissionHandlers/ImagePickerService.dart';
+import 'package:application/Handlers/Repository/CustomerRepo.dart';
 import 'package:application/MainProgram/Customer/Profile/ProfileState.dart';
+import 'package:application/SourceDesign/Models/UserInfo.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class ProfileViewModel extends Notifier<ProfileState> {
   @override
-  ProfileState build() => const ProfileState(
-        username: "Alice Sm",
-        password: "••••••••",
-      );
+  ProfileState build() {
+    // 1) initial placeholder state (loading=true)
+    final initial = const ProfileState(
+      username: "",
+      password: "",
+      isLoading: true,
+    );
 
-  void toggleEdit() {
+    Future.microtask(_loadProfileFromApi);
+
+    return initial;
+  }
+
+  Future<void> _loadProfileFromApi() async {
+    try {
+      state = state.copyWith(isLoading: true, clearError: true);
+
+      final data = await CustomerRepo().getProfile();
+
+      if (data is ConnectionStates) {
+        state = state.copyWith(error: "Failed to fetch data!");
+        return;
+      }
+
+      state = state.copyWith(
+        username: (data as UserInfo).username,
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: "$e");
+    }
+  }
+
+  Future<void> toggleEdit() async {
+    if (state.isEditing == true) {
+      final data = await CustomerRepo().editProfile(
+        username: state.username,
+        image: state.imageFile,
+      );
+      if (data != ConnectionStates.Success) {
+        state = state.copyWith(error: "This username is taken");
+        return;
+      }
+    }
     state = state.copyWith(isEditing: !state.isEditing, clearError: true);
   }
 
