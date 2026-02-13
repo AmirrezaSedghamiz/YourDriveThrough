@@ -607,6 +607,14 @@ class _OrderCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
+            "Ordered at: ${order.createdAt.hour}:${order.createdAt.minute}:${order.createdAt.second}",
+            style: t.bodySmall?.copyWith(
+              color: Colors.black.withOpacity(0.6),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
             "Total: \$${order.total} • ETA: ${order.expectedDuration} min",
             style: t.bodySmall?.copyWith(
               color: Colors.black.withOpacity(0.6),

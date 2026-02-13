@@ -1,3 +1,5 @@
+import 'package:application/GlobalWidgets/PermissionHandlers/Location/Location.dart';
+import 'package:application/Handlers/Repository/OrderRepo.dart';
 import 'package:application/MainProgram/Customer/RestaurantMenu/OrderState.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:application/SourceDesign/Models/Item.dart';
@@ -64,8 +66,21 @@ class OrderViewModel extends Notifier<OrderState> {
 
       // TODO: call your API to finalize all submitted orders or the latest one
       // await OrderRepo().finalize(...);
-
-      await Future.delayed(const Duration(milliseconds: 500));
+      List<Map<int, int>> orders = [];
+      for (var i in state.submittedOrders) {
+        for (var j in i.lines) {
+          orders.add({j.item.id: j.qty});
+        }
+      }
+      final loc = await LocationService().getUserLocation();
+      if (loc.data == null) return;
+      
+      final data = await OrderRepo().orderItems(
+        restaurantId: state.submittedOrders[0].restaurantId,
+        latitude: loc.data!.latitude!,
+        longitude: loc.data!.longitude!,
+        items: orders,
+      );
       state = state.copyWith(isSubmitting: false);
     } catch (e) {
       state = state.copyWith(isSubmitting: false, error: '$e');
@@ -73,5 +88,6 @@ class OrderViewModel extends Notifier<OrderState> {
   }
 }
 
-final orderViewModelProvider =
-    NotifierProvider<OrderViewModel, OrderState>(() => OrderViewModel());
+final orderViewModelProvider = NotifierProvider<OrderViewModel, OrderState>(
+  () => OrderViewModel(),
+);

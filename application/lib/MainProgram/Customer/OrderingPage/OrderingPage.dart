@@ -1,5 +1,7 @@
 // UserOrderHistory.dart
 // Requires: infinite_scroll_pagination
+import 'package:application/GlobalWidgets/InternetManager/ConnectionStates.dart';
+import 'package:application/GlobalWidgets/PermissionHandlers/Location/Location.dart';
 import 'package:application/Handlers/Repository/OrderRepo.dart';
 import 'package:flutter/material.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
@@ -16,7 +18,7 @@ class UserOrderHistory extends StatefulWidget {
     this.pageSize = 20,
     this.firstPageKey = 1,
     this.onReorder,
-    this.onOpenActive, // tap on active card
+    this.onOpenActive,
   });
 
   final Future<dynamic> Function({
@@ -52,6 +54,8 @@ class _UserOrderHistoryState extends State<UserOrderHistory>
       ..addPageRequestListener(_fetchPage);
   }
 
+  List<Order> _activeOrders = [];
+
   Future<void> _fetchPage(int pageKey) async {
     try {
       final res = await widget.fetchPage(
@@ -67,9 +71,15 @@ class _UserOrderHistoryState extends State<UserOrderHistory>
       // Past: everything else
       final past = incoming.where((o) => !_isActiveStatus(o.status)).toList();
 
-      // Keep one active pinned
-      if (_activeOrder == null && active.isNotEmpty) {
-        _activeOrder = active.first;
+      if (pageKey == widget.firstPageKey) {
+        setState(() {
+          _activeOrders = active;
+        });
+      } else if (active.isNotEmpty) {
+        // optional: append actives from later pages if your API mixes them
+        setState(() {
+          _activeOrders = [..._activeOrders, ...active];
+        });
       }
 
       if (res["isLastPage"] == true) {
@@ -102,12 +112,13 @@ class _UserOrderHistoryState extends State<UserOrderHistory>
           "Orders",
           style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800),
         ),
-        scrolledUnderElevation: 0
+        scrolledUnderElevation: 0,
       ),
       body: RefreshIndicator(
         onRefresh: () async {
           _activeOrder = null;
           _pagingController.refresh();
+          setState(() {});
         },
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(
@@ -118,25 +129,26 @@ class _UserOrderHistoryState extends State<UserOrderHistory>
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
               sliver: SliverToBoxAdapter(
-                child: _activeOrder == null
+                child: _activeOrders.isEmpty
                     ? const SizedBox.shrink()
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "Active Order",
+                            "Active Orders",
                             style: t.bodyMedium?.copyWith(
                               fontWeight: FontWeight.w800,
                             ),
                           ),
                           const SizedBox(height: 10),
-                          _ActiveOrderCard(
-                            order: _activeOrder!,
-                            onTap:
-                                widget.onOpenActive ??
-                                () {
-                                  // default: do nothing (you choose logic)
-                                },
+                          ..._activeOrders.map(
+                            (o) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _ActiveOrderCard(
+                                order: o,
+                                onTap: widget.onOpenActive ?? () {},
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -192,12 +204,32 @@ class _UserOrderHistoryState extends State<UserOrderHistory>
                         order: order,
                         onReorder: () async {
                           try {
-                            await (widget.onReorder?.call(order) ??
-                                Future.value());
+                            final ok = await _confirmReorder(context);
+                            if (ok == false) return;
+                            final loc = await LocationService()
+                                .getUserLocation();
+                            if (loc.data == null) return;
+                            final data = await OrderRepo().reOrder(
+                              orderId: order.id,
+                              latitude: loc.data!.latitude!,
+                              longitude: loc.data!.longitude!,
+                            );
+                            print(data.toString());
+                            if (data is ConnectionStates) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text("Reorder failed!")),
+                              );
+                              return;
+                            }
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Reorder successful!")),
+                            );
+                            _activeOrders.insert(0, data);
+                            setState(() {});
                           } catch (e) {
                             if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text("Reorder failed: $e")),
+                              SnackBar(content: Text("Reorder failed : $e")),
                             );
                           }
                         },
@@ -209,6 +241,34 @@ class _UserOrderHistoryState extends State<UserOrderHistory>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<bool?> _confirmReorder(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text("Reorder?", style: t.titleMedium),
+        content: Text(
+          "Are you sure you want to reorder this order?",
+          style: t.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text("Cancel", style: t.labelLarge),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              "Yes, reorder",
+              style: t.labelLarge?.copyWith(color: AppColors.white),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -524,61 +584,66 @@ class _PastOrderCardState extends State<_PastOrderCard> {
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 Text(
-                  widget.order.rating == null ? widget.order.status != OrderStatus.recieved ? 
-                  "You can only rate the completed orders" 
-                  : "" : "",
+                  widget.order.rating == null
+                      ? widget.order.status != OrderStatus.recieved
+                            ? "You can only rate the completed orders"
+                            : ""
+                      : "",
                   style: t.bodySmall?.copyWith(
                     color: Colors.black.withOpacity(0.55),
                   ),
                 ),
-                if(widget.order.status == OrderStatus.recieved) ... [
-                const Spacer(),
-                Row(
-                  children: List.generate(
-                    5,
-                    (i) => widget.order.rating != null
-                        ? Icon(
-                            i <= (widget.order.rating ?? -1)
-                                  ? Icons.star
-                                  : Icons.star_border_rounded,
-                            size: 18,
-                            color: AppColors.coal.withOpacity(0.9),
-                          )
-                        : GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                selectedValue = i;
-                              });
-                            },
-                            child: Icon(
-                              i <= (selectedValue ?? -1)
+                if (widget.order.status == OrderStatus.recieved) ...[
+                  const Spacer(),
+                  Row(
+                    children: List.generate(
+                      5,
+                      (i) => widget.order.rating != null
+                          ? Icon(
+                              i <= (widget.order.rating ?? -1)
                                   ? Icons.star
                                   : Icons.star_border_rounded,
                               size: 18,
-                              color: AppColors.primary.withOpacity(0.9),
+                              color: AppColors.coal.withOpacity(0.9),
+                            )
+                          : GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  selectedValue = i;
+                                });
+                              },
+                              child: Icon(
+                                i <= (selectedValue ?? -1)
+                                    ? Icons.star
+                                    : Icons.star_border_rounded,
+                                size: 18,
+                                color: AppColors.primary.withOpacity(0.9),
+                              ),
                             ),
-                          ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () {
-                    if (selectedValue == null) return;
-                    widget.order.rating = selectedValue;
-                    OrderRepo().rateOrder(
-                      orderId: widget.order.id,
-                      rate: selectedValue! + 1,
-                    );
-                    setState(() {});
-                  },
-                  child: Text(
-                    "Rate",
-                    style: t.bodySmall?.copyWith(
-                      color: widget.order.rating == null ? AppColors.primary : AppColors.coal,
-                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                ),]
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () {
+                      if (selectedValue == null) return;
+                      widget.order.rating = selectedValue;
+                      OrderRepo().rateOrder(
+                        orderId: widget.order.id,
+                        rate: selectedValue! + 1,
+                      );
+                      setState(() {});
+                    },
+                    child: Text(
+                      "Rate",
+                      style: t.bodySmall?.copyWith(
+                        color: widget.order.rating == null
+                            ? AppColors.primary
+                            : AppColors.coal,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ],

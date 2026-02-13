@@ -3,10 +3,12 @@ import 'dart:io';
 import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
 import 'package:application/GlobalWidgets/NavigationServices/NavigationService.dart';
 import 'package:application/GlobalWidgets/NavigationServices/RouteFactory.dart';
+import 'package:application/GlobalWidgets/Services/Tapsell.dart';
 import 'package:application/Handlers/TokenHandler.dart';
 import 'package:application/MainProgram/Customer/Profile/ProfileViewModel.dart';
 import 'package:application/MainProgram/Login/Login.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class ProfilePage extends ConsumerStatefulWidget {
@@ -125,22 +127,22 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
             const SizedBox(height: 14),
 
-            // Payment & Preferences
-            _ActionRow(
-              icon: Icons.credit_card_rounded,
-              title: "Payment & Preferences",
-              onTap: () {
-                // keep UI; user can implement navigation if desired
-              },
-            ),
-            const SizedBox(height: 6),
+            // // Payment & Preferences
+            // _ActionRow(
+            //   icon: Icons.credit_card_rounded,
+            //   title: "Payment & Preferences",
+            //   onTap: () {
+            //     // keep UI; user can implement navigation if desired
+            //   },
+            // ),
+            // const SizedBox(height: 6),
 
-            // Order History
-            _ActionRow(
-              icon: Icons.history_rounded,
-              title: "Order History",
-              onTap: () {},
-            ),
+            // // Order History
+            // _ActionRow(
+            //   icon: Icons.history_rounded,
+            //   title: "Order History",
+            //   onTap: () {},
+            // ),
 
             const SizedBox(height: 14),
 
@@ -148,18 +150,19 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             const _AdPlaceholder(),
 
             const SizedBox(height: 14),
+            NativeAdWidget(zoneId: dotenv.env['TAPSELL_ZONE_ID']!, factoryId: ""),
 
-            _ActionRow(
-              icon: Icons.help_outline_rounded,
-              title: "Help & Support",
-              onTap: () {},
-            ),
-            const SizedBox(height: 6),
-            _ActionRow(
-              icon: Icons.settings_rounded,
-              title: "Settings",
-              onTap: () {},
-            ),
+            // _ActionRow(
+            //   icon: Icons.help_outline_rounded,
+            //   title: "Help & Support",
+            //   onTap: () {},
+            // ),
+            // const SizedBox(height: 6),
+            // _ActionRow(
+            //   icon: Icons.settings_rounded,
+            //   title: "Settings",
+            //   onTap: () {},
+            // ),
 
             const SizedBox(height: 14),
 
@@ -389,16 +392,16 @@ class _EditSection extends StatelessWidget {
           decoration: deco("Enter username"),
           textInputAction: TextInputAction.next,
         ),
-        const SizedBox(height: 12),
-        Text("Password", style: t.labelLarge?.copyWith(fontWeight: FontWeight.w800)),
-        const SizedBox(height: 8),
-        TextField(
-          controller: passwordController,
-          onChanged: onPasswordChanged,
-          style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
-          decoration: deco("Enter password"),
-          obscureText: true,
-        ),
+        // const SizedBox(height: 12),
+        // Text("Password", style: t.labelLarge?.copyWith(fontWeight: FontWeight.w800)),
+        // const SizedBox(height: 8),
+        // TextField(
+        //   controller: passwordController,
+        //   onChanged: onPasswordChanged,
+        //   style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+        //   decoration: deco("Enter password"),
+        //   obscureText: true,
+        // ),
       ],
     );
   }
@@ -490,21 +493,25 @@ class _AdPlaceholder extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
+          
           Container(
             height: 150,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
-              color: const Color(0xFFEFEFEF),
+              color: AppColors.primary,
+              image: DecorationImage(image: AssetImage(
+                'assets/download.jpg'
+              ), fit: BoxFit.cover)
             ),
-            child: Center(
-              child: Text(
-                "Ad goes here",
-                style: t.bodyMedium?.copyWith(
-                  color: Colors.black.withOpacity(0.5),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
+            // child: Center(
+            //   child: Text(
+            //     "Ad goes here",
+            //     style: t.bodyMedium?.copyWith(
+            //       color: Colors.black.withOpacity(0.5),
+            //       fontWeight: FontWeight.w700,
+            //     ),
+            //   ),
+            // ),
           ),
           const SizedBox(height: 12),
           Text(

@@ -57,6 +57,8 @@ class _RestaurantMenuState extends ConsumerState<RestaurantMenu> {
 
     return Scaffold(
       appBar: AppAppBar(
+        backgroundColor: state.selectedItem != null ? Colors.black.withOpacity(0.35) :
+        AppColors.background,
         leading: GestureDetector(
           onTap: () {
             NavigationService.pop();
@@ -87,21 +89,24 @@ class _RestaurantMenuState extends ConsumerState<RestaurantMenu> {
                 // category chips
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
                     child: SizedBox(
                       height: 36,
                       child: ListView.separated(
                         physics: const BouncingScrollPhysics(),
                         scrollDirection: Axis.horizontal,
                         itemCount: state.categories.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        separatorBuilder: (_, __) => const SizedBox(width: 0),
                         itemBuilder: (_, i) {
                           final c = state.categories[i];
                           final selected = i == state.selectedCategoryIndex;
-                          return _Chip(
-                            label: c.name,
-                            selected: selected,
-                            onTap: () => vm.selectCategory(i),
+                          return Padding(
+                            padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
+                            child: _Chip(
+                              label: c.name,
+                              selected: selected,
+                              onTap: () => vm.selectCategory(i),
+                            ),
                           );
                         },
                       ),

@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:application/GlobalWidgets/InternetManager/ConnectionStates.dart';
 import 'package:application/GlobalWidgets/InternetManager/HttpClient.dart';
 import 'package:application/GlobalWidgets/InternetManager/InternetHandler.dart';
 import 'package:application/Handlers/TokenHandler.dart';
 import 'package:application/SourceDesign/Models/RestauarantInfo.dart';
+import 'package:application/SourceDesign/Models/UserInfo.dart';
 import 'package:dio/dio.dart';
 
 class CustomerRepo {
@@ -29,8 +32,6 @@ class CustomerRepo {
   }
 
   Future<dynamic> _getRestaurantListHandler(Response response) async {
-    print(response.data);
-    print(response.statusCode);
     if (response.statusCode == 200) {
       List<RestaurantInfo> restaurants = [];
       for (var i in response.data['results']) {
@@ -99,8 +100,6 @@ class CustomerRepo {
   }
 
   Future<dynamic> _getRestaurantMenuHandler(Response response) async {
-    print(response.data);
-    print(response.statusCode);
     if (response.statusCode == 200) {
       return ConnectionStates.Success;
     } else if (response.statusCode == 400) {
@@ -134,5 +133,114 @@ class CustomerRepo {
 
   Future<dynamic> getRestaurantMenu({required int restaurantId}) {
     return _getRestaurantMenuKwargBuilder({'id': restaurantId});
+  }
+
+  /////////////////////////////
+  Future<Response> _editProfileRequest(Map<String, dynamic> kwargs) async {
+    String? fileName = kwargs['image']?.path.split('/').last;
+    Options options = Options(
+      followRedirects: false,
+      validateStatus: (status) {
+        return status! < 600;
+      },
+      headers: {'Authorization': await TokenStore.getAccessToken()},
+    );
+    var data;
+    if (kwargs['image'] == null) {
+      data = {'phone': kwargs['username']};
+    } else {
+      data = FormData.fromMap({
+        "image": kwargs['image'] != null
+            ? await MultipartFile.fromFile(
+                kwargs['image'].path,
+                filename: fileName,
+              )
+            : null,
+        "phone": kwargs['username'],
+      });
+    }
+    return await HttpClient.instance.post(
+      'me/customer/profile/update/',
+      options: options,
+      data: data,
+    );
+  }
+
+  Future<dynamic> _editProfileHandler(Response response) async {
+    if (response.statusCode == 200) {
+      return ConnectionStates.Success;
+    } else if (response.statusCode == 400) {
+      return ConnectionStates.BadRequest;
+    } else if (response.statusCode == 401) {
+      return ConnectionStates.Unauthorized;
+    } else if (response.statusCode == 404) {
+      return ConnectionStates.TokenFailure;
+    } else {
+      if (response.statusCode == 500) {
+        return ConnectionStates.DataBase;
+      } else if (response.statusCode == 502) {
+        return ConnectionStates.BadGateWay;
+      } else if (response.statusCode == 504) {
+        return ConnectionStates.GateWayTimeOut;
+      } else {
+        return ConnectionStates.Unexpected;
+      }
+    }
+  }
+
+  Future<dynamic> _editProfileKwargBuilder(Map<String, dynamic> kwargs) async {
+    return handleErrors(kwargs, _editProfileRequest, _editProfileHandler);
+  }
+
+  Future<dynamic> editProfile({
+    required String username,
+    required File? image,
+  }) {
+    return _editProfileKwargBuilder({'image': image, 'username': username});
+  }
+
+  /////////////////////////////////
+  Future<Response> _getProfileRequest(Map<String, dynamic> kwargs) async {
+    Options options = Options(
+      followRedirects: false,
+      validateStatus: (status) {
+        return status! < 600;
+      },
+      headers: {'Authorization': await TokenStore.getAccessToken()},
+    );
+    return await HttpClient.instance.get(
+      'me/customer/profile/',
+      options: options,
+    );
+  }
+
+  Future<dynamic> _getProfileHandler(Response response) async {
+    if (response.statusCode == 200) {
+      return UserInfo.fromMap(response.data);
+    } else if (response.statusCode == 400) {
+      return ConnectionStates.BadRequest;
+    } else if (response.statusCode == 401) {
+      return ConnectionStates.Unauthorized;
+    } else if (response.statusCode == 404) {
+      return ConnectionStates.TokenFailure;
+    } else {
+      if (response.statusCode == 500) {
+        return ConnectionStates.DataBase;
+      } else if (response.statusCode == 502) {
+        return ConnectionStates.BadGateWay;
+      } else if (response.statusCode == 504) {
+        return ConnectionStates.GateWayTimeOut;
+      } else {
+        return ConnectionStates.Unexpected;
+      }
+    }
+  }
+
+  Future<dynamic> _getProfileKwargBuilder(Map<String, dynamic> kwargs) async {
+    return handleErrors(kwargs, _getProfileRequest, _getProfileHandler);
+  }
+
+  Future<dynamic> getProfile() {
+    return _getProfileKwargBuilder({});
   }
 }
