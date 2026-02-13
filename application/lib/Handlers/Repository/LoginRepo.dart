@@ -198,4 +198,42 @@ class LoginRepo {
   Future<dynamic> getRole() async {
     return _getRoleKwargBuilder({});
   }
+  ////////////////////////////////////////////////
+  Future<Response> _versionCheckRequest(Map<String, dynamic> kwargs) async {
+    return await HttpClient.instanceWithoutVersion.post(
+      'app_version/android/validate/',
+      options: HttpClient.globalHeader,
+      data: {
+        'version' : HttpClient.version
+      },
+    );
+  }
+
+  Future<dynamic> _versionCheckHandler(Response response) async {
+    if (response.statusCode == 200) {
+      return response.data['update_required'];
+    } else {
+      if (response.statusCode == 400) {
+        return ConnectionStates.BadRequest;
+      } else if (response.statusCode == 401) {
+        return ConnectionStates.Unauthorized;
+      } else if (response.statusCode == 500) {
+        return ConnectionStates.DataBase;
+      } else if (response.statusCode == 502) {
+        return ConnectionStates.BadGateWay;
+      } else if (response.statusCode == 504) {
+        return ConnectionStates.GateWayTimeOut;
+      } else {
+        return ConnectionStates.Unexpected;
+      }
+    }
+  }
+
+  Future<dynamic> _versionCheckKwargBuilder(Map<String, dynamic> kwargs) async {
+    return handleErrors(kwargs, _versionCheckRequest, _versionCheckHandler);
+  }
+
+  Future<dynamic> versionCheck() async {
+    return _versionCheckKwargBuilder({});
+  }
 }

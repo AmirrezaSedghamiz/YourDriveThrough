@@ -120,4 +120,59 @@ class OrderRepo {
   }) {
     return _getAllCategoriesKwargBuilder({});
   }
+
+  //////////////////////////////////////////////////////////////////
+  Future<Response> _updateStatusRequest(Map<String, dynamic> kwargs) async {
+    Options options = Options(
+      followRedirects: false,
+      validateStatus: (status) {
+        return status! < 600;
+      },
+      headers: {'Authorization': await TokenStore.getAccessToken()},
+    );
+    return await HttpClient.instance.post(
+      'orders/status/update/',
+      options: options,
+      data:{
+        'new_status': kwargs['new_status'],
+        'order_id': kwargs['id']
+      }
+      );
+  }
+
+  Future<dynamic> _updateStatusHandler(Response response) async {
+    if (response.statusCode == 200) {
+      return ConnectionStates.Success;
+    } else if (response.statusCode == 400) {
+      return ConnectionStates.BadRequest;
+    } else if (response.statusCode == 401) {
+      return ConnectionStates.Unauthorized;
+    } else if (response.statusCode == 404) {
+      return ConnectionStates.TokenFailure;
+    } else {
+      if (response.statusCode == 500) {
+        return ConnectionStates.DataBase;
+      } else if (response.statusCode == 502) {
+        return ConnectionStates.BadGateWay;
+      } else if (response.statusCode == 504) {
+        return ConnectionStates.GateWayTimeOut;
+      } else {
+        return ConnectionStates.Unexpected;
+      }
+    }
+  }
+
+  Future<dynamic> _updateStatusKwargBuilder(Map<String, dynamic> kwargs) async {
+    return handleErrors(kwargs, _updateStatusRequest, _updateStatusHandler);
+  }
+
+  Future<dynamic> updateStatus({
+    required String newStatus,
+    required int orderId,
+  }) {
+    return _updateStatusKwargBuilder({
+      'id' : orderId,
+      'new_status': newStatus
+    });
+  }
 }

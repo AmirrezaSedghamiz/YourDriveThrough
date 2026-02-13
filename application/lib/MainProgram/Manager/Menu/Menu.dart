@@ -336,23 +336,22 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
                   ),
                 ),
 
-                // const SizedBox(height: 10),
 
-                // SizedBox(
-                //   width: double.infinity,
-                //   child: OutlinedButton.icon(
-                //     onPressed: () => _addCategoryDialog(context, vm),
-                //     icon: const Icon(Icons.add),
-                //     label: const Text("Add New Category"),
-                //     style: OutlinedButton.styleFrom(
-                //       foregroundColor: Colors.black.withOpacity(0.8),
-                //       side: BorderSide(color: Colors.black.withOpacity(0.12)),
-                //       shape: RoundedRectangleBorder(
-                //         borderRadius: BorderRadius.circular(12),
-                //       ),
-                //     ),
-                //   ),
-                // ),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _addCategoryDialog(context, vm),
+                    icon: const Icon(Icons.add),
+                    label: const Text("Add New Category"),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.black.withOpacity(0.8),
+                      side: BorderSide(color: Colors.black.withOpacity(0.12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 12),
 
                 AppTapButton(

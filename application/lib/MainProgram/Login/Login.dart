@@ -68,10 +68,18 @@ class _LoginPageState extends ConsumerState<LoginPage>
             ? AppRoutes.fade(DashboardCustomer(initialPage: 0))
             : next.isProfileComplete
             ? AppRoutes.fade(DashboardManager(initialPage: 0))
-            : AppRoutes.fade(MapBuilder(username: next.username ?? "")));
+            : null);
+        if (route == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            NavigationService.push(
+              AppRoutes.fade(MapBuilder(username: next.username ?? "")),
+            );
+          });
+          return;
+        }
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          NavigationService.popAllAndPush(route);
+          NavigationService.popAllAndPush(route!);
         });
       }
     });

@@ -2,21 +2,21 @@ import 'dart:convert';
 
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 class RestaurantInfo {
-  int id;
+  int? id;
   String name;
   String address;
-  num latitiude;
+  num latitude;
   num longitude;
   String? image;
   bool profileComplete;
-  num rating;
+  num? rating;
   bool isOpen;
 
   RestaurantInfo({
     required this.id,
     required this.name,
     required this.address,
-    required this.latitiude,
+    required this.latitude,
     required this.longitude,
     this.image,
     required this.profileComplete,
@@ -28,7 +28,7 @@ class RestaurantInfo {
     int? id,
     String? name,
     String? address,
-    num? latitiude,
+    num? latitude,
     num? rating,
     num? longitude,
     String? image,
@@ -39,12 +39,12 @@ class RestaurantInfo {
       id: id ?? this.id,
       name: name ?? this.name,
       address: address ?? this.address,
-      latitiude: latitiude ?? this.latitiude,
+      latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       image: image ?? this.image,
       profileComplete: profileComplete ?? this.profileComplete,
       rating: rating ?? this.rating,
-      isOpen: isOpen ?? this.isOpen
+      isOpen: isOpen ?? this.isOpen,
     );
   }
 
@@ -53,15 +53,22 @@ class RestaurantInfo {
       id: map['id'],
       name: map['name'],
       address: map['address'],
-      latitiude: map['latitiude'],
-      longitude: map['longitude'],
+      latitude: _parseNum(map['latitude']),
+      longitude: _parseNum(map['longitude']),
       image: map['image'] != null ? map['image'] as String : null,
       profileComplete: map['profile_complete'],
-      rating: map['rating'],
-      isOpen: map['is_open']
+      rating: _parseNum(map['rating']),
+      isOpen: map['is_open'],
     );
   }
 
   factory RestaurantInfo.fromJson(String source) =>
       RestaurantInfo.fromMap(json.decode(source) as Map<String, dynamic>);
+}
+
+num _parseNum(dynamic value) {
+  if (value == null) return 0;
+  if (value is num) return value;
+  if (value is String) return num.tryParse(value) ?? 0;
+  return 0;
 }

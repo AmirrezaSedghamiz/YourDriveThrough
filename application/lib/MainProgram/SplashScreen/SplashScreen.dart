@@ -75,14 +75,20 @@ class _SplashScreenState extends State<SplashScreen>
     if (data != ConnectionStates && data) {
       final role = await LoginRepo().getRole();
       var route = (role["role"] == "customer"
-            ? AppRoutes.fade(DashboardCustomer(initialPage: 0))
-            : role["complete"]
-            ? AppRoutes.fade(DashboardManager(initialPage: 0,))
-            : AppRoutes.fade(
-                MapBuilder(
-                  username: role["username"] ?? ""
-                ),
-              ));
+          ? AppRoutes.fade(DashboardCustomer(initialPage: 0))
+          : role["complete"]
+          ? AppRoutes.fade(DashboardManager(initialPage: 0))
+          : null);
+      if (route == null) {
+        var firstRoute = AppRoutes.fade(LoginPage());
+        var secondRoute = AppRoutes.fade(
+          MapBuilder(username: role["username"] ?? ""),
+        );
+        NavigationService.replace(firstRoute);
+        NavigationService.push(secondRoute);
+        return;
+      }
+
       NavigationService.replace(route);
       return;
     } else {
