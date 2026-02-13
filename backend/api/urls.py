@@ -14,6 +14,7 @@ from .views import MyOrdersView
 from .views import LeaveRatingView
 from .views import RestaurantSearchView
 from .views import OrderRatingView
+from .views import ReorderView
 
 urlpatterns = [
     path("login/", LoginView.as_view(), name="login"),
@@ -29,6 +30,7 @@ urlpatterns = [
     path("me/restaurant/", RestaurantMeUpdateView.as_view(), name="restaurant_me_update"),
     path("me/orders/", MyOrdersView.as_view(), name="my_orders"),
     path("me/orders/create/", OrderCreateView.as_view(), name="create_order"),
+    path("me/orders/reorder/", ReorderView.as_view(), name = "reorder"),
     path("me/orders/update_status/", OrderStatusUpdateView.as_view(), name="update_order_status"),
     path("me/ratings/rate/", LeaveRatingView.as_view(), name="create_rating"),
     path("me/menu/sync/", MeMenuSyncView.as_view(), name="me_menu_sync"),
