@@ -15,7 +15,7 @@ from django.core.paginator import Paginator
 from django.conf import settings
 from drf_spectacular.utils import extend_schema
 from collections import defaultdict
-from .serializers import CustomerSerializer, CustomerUpdateSerializer, LoginSerializer, RatingCreateSerializer, RatingSerializer, MenuSyncSerializer, RestaurantUpdateSerializer, UserSerializer
+from .serializers import CustomerReportSerializer, CustomerSerializer, CustomerUpdateSerializer, LoginSerializer, RatingCreateSerializer, RatingSerializer, MenuSyncSerializer, RestaurantReportSerializer, RestaurantUpdateSerializer, UserSerializer
 from .serializers import SignupSerializer
 from .serializers import RestaurantSerializer
 from .serializers import ClosestRestaurantsSerializer
@@ -1030,3 +1030,33 @@ class CustomerUpdateView(APIView):
             "phone": request.user.phone,
             "image": customer.image.url if customer.image else None,
         }, status=status.HTTP_200_OK)
+
+
+class CustomerReportCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if not hasattr(request.user, "customer"):
+            raise PermissionDenied("Only customers can report restaurants.")
+
+        serializer = CustomerReportSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(customer=request.user.customer)
+
+        return Response({"message": "Report submitted successfully", "report": serializer.data},
+                        status=status.HTTP_201_CREATED)
+
+
+class RestaurantReportCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if not hasattr(request.user, "restaurant"):
+            raise PermissionDenied("Only restaurants can report customers.")
+
+        serializer = RestaurantReportSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(restaurant=request.user.restaurant)
+
+        return Response({"message": "Report submitted successfully", "report": serializer.data},
+                        status=status.HTTP_201_CREATED)
