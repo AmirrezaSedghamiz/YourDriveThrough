@@ -11,6 +11,7 @@ from .serializers import CategorySerializer
 from .serializers import MenuItemSerializer
 from .serializers import RestaurantMenuRequestSerializer
 from .serializers import RestaurantSearchSerializer
+from .serializers import MenuSyncSerializer
 from django.db import transaction
 from django.utils import timezone
 from django.core.paginator import Paginator
@@ -163,7 +164,7 @@ class GetClosestRestaurantsView(APIView):
 
         # --- Neshan API Call ---
         origins = f"{lat},{lon}"
-        destinations = "|".join([f"{r.latitude},{r.longitude}" for r in restaurants])
+        destinations = "|".join([f"{abs(r.latitude)},{abs(r.longitude)}" for r in restaurants])
         url = f"https://api.neshan.org/v1/distance-matrix?type=car&origins={origins}&destinations={destinations}"
         headers = {"Api-Key": settings.NESHAN_API_KEY}
 
@@ -644,34 +645,35 @@ class OrderRatingView(APIView):
         )
 
 
-class RestaurantMenuSyncView(APIView):
+class MeMenuSyncView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     @transaction.atomic
     def post(self, request):
-        # Must be restaurant
+        # Ensure user is a restaurant
         if not hasattr(request.user, "restaurant"):
-            return Response(
-                {"detail": "Only restaurants can modify menu"},
-                status=status.HTTP_403_FORBIDDEN
-            )
+            raise PermissionDenied("Only restaurants can sync menu.")
 
         restaurant = request.user.restaurant
 
-        serializer = RestaurantMenuSyncSerializer(data=request.data)
+        serializer = MenuSyncSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         incoming_categories = serializer.validated_data["categories"]
 
-        # Existing DB state
+        # Fetch existing active categories & items for THIS restaurant only
         existing_categories = {
-            c.id: c for c in Category.objects.filter(restaurant=restaurant, is_active=True)
+            c.id: c for c in Category.objects.filter(
+                restaurant=restaurant,
+                is_active=True
+            )
         }
+
         existing_items = {
             i.id: i for i in MenuItem.objects.filter(
                 category__restaurant=restaurant,
                 is_active=True
-            )
+            ).select_related("category")
         }
 
         seen_category_ids = set()
@@ -681,27 +683,35 @@ class RestaurantMenuSyncView(APIView):
             cat_id = cat_data.get("id")
             items_data = cat_data["items"]
 
-            # CREATE or UPDATE category
-            if cat_id and cat_id in existing_categories:
-                category = existing_categories[cat_id]
+            # UPDATE category (if exists and belongs to this restaurant)
+            if cat_id:
+                category = existing_categories.get(cat_id)
+                if not category:
+                    raise PermissionDenied("Invalid category id for this restaurant.")
+
                 category.name = cat_data["name"]
                 category.is_active = True
                 category.save(update_fields=["name", "is_active"])
                 seen_category_ids.add(category.id)
             else:
+                # CREATE new category
                 category = Category.objects.create(
                     restaurant=restaurant,
                     name=cat_data["name"],
                     is_active=True
                 )
+                seen_category_ids.add(category.id)
 
-            # Process items inside category
+            # Process items
             for item_data in items_data:
                 item_id = item_data.get("id")
 
-                if item_id and item_id in existing_items:
-                    # Update existing item
-                    item = existing_items[item_id]
+                if item_id:
+                    item = existing_items.get(item_id)
+                    if not item:
+                        raise PermissionDenied("Invalid menu item id for this restaurant.")
+
+                    # UPDATE item
                     item.name = item_data["name"]
                     item.description = item_data["description"]
                     item.price = item_data["price"]
@@ -711,7 +721,7 @@ class RestaurantMenuSyncView(APIView):
                     item.save()
                     seen_item_ids.add(item.id)
                 else:
-                    # Create new item
+                    # CREATE new item
                     item = MenuItem.objects.create(
                         category=category,
                         name=item_data["name"],
@@ -722,7 +732,7 @@ class RestaurantMenuSyncView(APIView):
                     )
                     seen_item_ids.add(item.id)
 
-        # Deactivate missing items
+        # Deactivate missing menu items
         for item_id, item in existing_items.items():
             if item_id not in seen_item_ids:
                 item.is_active = False

@@ -368,6 +368,5 @@ class CategorySyncSerializer(serializers.Serializer):
     items = MenuItemSyncSerializer(many=True)
 
 
-class RestaurantMenuSyncSerializer(serializers.Serializer):
+class MenuSyncSerializer(serializers.Serializer):
     categories = CategorySyncSerializer(many=True)
-
