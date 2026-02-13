@@ -160,14 +160,14 @@ class GetClosestRestaurantsView(APIView):
         if not restaurants.exists():
             return Response({"results": [], "pagination": {}}, status=status.HTTP_200_OK)
 
-        origins = "|".join([
-            f"{r.latitude},{r.longitude}" for r in restaurants
-        ])
+        origins = f"{lat},{lon}"
         destinations = "|".join([
             f"{r.latitude},{r.longitude}" for r in restaurants
         ])
 
-        url = "https://api.neshan.org/v1/distance-matrix?" + "type=car&origin=" + origins + "destinations=" + destinations
+        url = "https://api.neshan.org/v1/distance-matrix?" + "type=car&origins=" + origins + "&destinations=" + destinations
+
+        print(url)
 
         headers = {"Api-Key": settings.NESHAN_API_KEY}
 
