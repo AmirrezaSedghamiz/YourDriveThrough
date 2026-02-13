@@ -329,14 +329,11 @@ class OrderCreateView(generics.CreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
-        customer = Customer.objects.get(user=self.request.user)
+        if not hasattr(self.request.user, "customer"):
+            raise PermissionDenied("Only customers can create orders.")
 
-        with transaction.atomic():
-            serializer.save(
-                customer=customer,
-                status="pending",
-                start=timezone.now(),
-            )
+        serializer.save()
+
 
 
 # DEPRECATED: Use POST /me/orders/ with statuses=["accepted","done"]
