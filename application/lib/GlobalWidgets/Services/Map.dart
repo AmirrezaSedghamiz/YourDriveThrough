@@ -1,5 +1,5 @@
+// MapBuilder.dart (UI polish only – logic unchanged)
 // ignore_for_file: public_member_api_docs, sort_constructors_first
-import 'dart:collection' show MapView;
 import 'dart:convert';
 import 'dart:io';
 
@@ -17,7 +17,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:location/location.dart';
 
 class MapBuilder extends StatefulWidget {
@@ -43,7 +42,7 @@ class _MapBuilderState extends State<MapBuilder> {
   final MapController mapController = MapController();
   final TextEditingController searchController = TextEditingController();
   bool isSearchExpanded = false;
-  List<Itemm> searchResults = []; // Mock search results for now
+  List<Itemm> searchResults = [];
 
   Future<void> getUserLocation() async {
     Location location = Location();
@@ -93,6 +92,8 @@ class _MapBuilderState extends State<MapBuilder> {
 
   @override
   Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+
     return Localizations.override(
       locale: const Locale('en'),
       context: context,
@@ -100,26 +101,50 @@ class _MapBuilderState extends State<MapBuilder> {
         child: Scaffold(
           backgroundColor: AppColors.background,
           body: Stack(
-            // inside build() Stack children:
             children: [
-              // Optional background image
-              MapWidget(
-                mapController: mapController,
-                userLocation: userLocation,
-                selectedLocation: selectedLocation,
-                onTapPoint: (point) {
-                  setState(() {
-                    selectedLocation = point;
-                  });
-                },
+              // MAP with a nicer overlay container feel (no logic change)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(0),
+                child: MapWidget(
+                  mapController: mapController,
+                  userLocation: userLocation,
+                  selectedLocation: selectedLocation,
+                  onTapPoint: (point) {
+                    setState(() {
+                      selectedLocation = point;
+                    });
+                  },
+                ),
               ),
 
-              // search panel
+              // subtle top scrim so search panel / buttons look better
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 0,
+                child: IgnorePointer(
+                  child: Container(
+                    height: 120,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withOpacity(0.18),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // search panel (UI improved in MapSearchPanel below)
               MapSearchPanel<Itemm>(
                 isExpanded: isSearchExpanded,
                 controller: searchController,
                 results: searchResults,
-                hintText: "Search",
+                hintText: "Search for a place",
                 titleOf: (it) => it.address ?? "",
                 latLngOf: (it) => LatLng(it.location.y, it.location.x),
                 onChanged: (_) => onSearch(),
@@ -140,6 +165,19 @@ class _MapBuilderState extends State<MapBuilder> {
                 },
               ),
 
+              // Top-left hint chip
+              Positioned(
+                right: 14,
+                bottom: 80,
+                child: _HintPill(
+                  title: selectedLocation == null ? "Pick destination" : "Destination set",
+                  subtitle: selectedLocation == null
+                      ? "Tap map or use search"
+                      : "Tap ✓ to confirm",
+                ),
+              ),
+
+              // Search FAB (polished in FloatingButtons.dart below)
               MapSearchFab(
                 expanded: isSearchExpanded,
                 onPressed: () {
@@ -153,6 +191,7 @@ class _MapBuilderState extends State<MapBuilder> {
                 },
               ),
 
+              // Submit FAB (polished in FloatingButtons.dart below)
               MapSubmitFab(
                 isLoading: isLoading,
                 enabled: !(isLoading || selectedLocation == null),
@@ -173,9 +212,7 @@ class _MapBuilderState extends State<MapBuilder> {
                   await ManagerRepo()
                       .fillRestaurantProfile(
                         username: widget.username,
-                        longitude: formatCoordinate(
-                          selectedLocation!.longitude,
-                        ),
+                        longitude: formatCoordinate(selectedLocation!.longitude),
                         latitude: formatCoordinate(selectedLocation!.latitude),
                         image: widget.image,
                         address: address.data['formatted_address'],
@@ -209,6 +246,57 @@ class _MapBuilderState extends State<MapBuilder> {
   }
 }
 
+class _HintPill extends StatelessWidget {
+  const _HintPill({required this.title, required this.subtitle});
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.92),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withOpacity(0.06)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 18,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.place_rounded, size: 18, color: Colors.black.withOpacity(0.65)),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(title, style: t.labelLarge?.copyWith(fontWeight: FontWeight.w900)),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: t.labelMedium?.copyWith(
+                  color: Colors.black.withOpacity(0.55),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// --- Models (unchanged) ---
+
 class LocationSearch {
   int count;
   List<Itemm> items;
@@ -224,9 +312,7 @@ class LocationSearch {
   factory LocationSearch.fromMap(Map<String, dynamic> map) {
     return LocationSearch(
       count: map['count'] as int,
-      items: List<Itemm>.from(
-        (map['items']).map<Itemm>((x) => Itemm.fromMap(x)),
-      ),
+      items: List<Itemm>.from((map['items']).map<Itemm>((x) => Itemm.fromMap(x))),
     );
   }
 

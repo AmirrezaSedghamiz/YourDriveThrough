@@ -1,6 +1,9 @@
 import 'dart:io';
 
 import 'package:application/GlobalWidgets/InternetManager/ConnectionStates.dart';
+import 'package:application/GlobalWidgets/NavigationServices/NavigationService.dart';
+import 'package:application/GlobalWidgets/NavigationServices/RouteFactory.dart';
+import 'package:application/MainProgram/Login/Login.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -21,7 +24,7 @@ Future<dynamic> handleErrors(
       } else if (returnedValue == ConnectionStates.BadGateWay) {
         // AnimationNavigation.navigatePopAllReplace(const Error502(), context);
       } else if (returnedValue == ConnectionStates.Unauthorized) {
-        // AnimationNavigation.navigatePopAllReplace(const LoginPage1(), context);
+        NavigationService.popAllAndPush(AppRoutes.fade(LoginPage()));
       }
     }
     return returnedValue;

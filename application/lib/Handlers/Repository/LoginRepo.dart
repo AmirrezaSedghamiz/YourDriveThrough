@@ -19,7 +19,6 @@ class LoginRepo {
         response.data["access_token"],
         response.data["refresh_token"],
       );
-      print(response.data);
       return {
         "role": response.data["role"],
         "complete": response.data["profile_complete"] ?? true,
@@ -110,20 +109,16 @@ class LoginRepo {
 
   //////////////////////////////////////////////////////////
   Future<Response> _verifyTokenRequest(Map<String, dynamic> kwargs) async {
-    print({"token": (await TokenStore.getAccessToken())?.replaceAll("Bearer ", "")});
     return await HttpClient.instanceWithoutVersion.post(
       'token/verify/',
       options: HttpClient.globalHeader,
       data: {
-        "token":
-            (await TokenStore.getAccessToken())?.replaceAll("Bearer ", ""),
+        "token": (await TokenStore.getAccessToken())?.replaceAll("Bearer ", ""),
       },
     );
   }
 
   Future<dynamic> _verifyTokenHandler(Response response) async {
-    print(response.data);
-    print(response.statusCode);
     if (response.statusCode == 200 || response.statusCode == 201) {
       return true;
     } else {
@@ -160,14 +155,10 @@ class LoginRepo {
       },
       headers: {'Authorization': await TokenStore.getAccessToken()},
     );
-    return await HttpClient.instance.get(
-      'me/auth/',
-      options: options,
-    );
+    return await HttpClient.instance.get('me/auth/', options: options);
   }
 
   Future<dynamic> _getRoleHandler(Response response) async {
-    print(response.data);
     if (response.statusCode == 200) {
       return {
         "role": response.data["role"],
@@ -198,14 +189,13 @@ class LoginRepo {
   Future<dynamic> getRole() async {
     return _getRoleKwargBuilder({});
   }
+
   ////////////////////////////////////////////////
   Future<Response> _versionCheckRequest(Map<String, dynamic> kwargs) async {
     return await HttpClient.instanceWithoutVersion.post(
       'app_version/android/validate/',
       options: HttpClient.globalHeader,
-      data: {
-        'version' : HttpClient.version
-      },
+      data: {'version': HttpClient.version},
     );
   }
 

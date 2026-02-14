@@ -7,12 +7,9 @@ import 'package:application/Handlers/Repository/ManagerRepo.dart';
 import 'package:application/MainProgram/Manager/Menu/MenuState.dart';
 import 'package:application/SourceDesign/Models/Category.dart';
 import 'package:application/SourceDesign/Models/Item.dart';
-import 'package:application/SourceDesign/Models/RestauarantInfo.dart'; // RestaurantInfo
+import 'package:application/SourceDesign/Models/RestauarantInfo.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// ---------------------------------------------------------------------------
-/// Contracts (keep these so you can swap implementations later)
-/// ---------------------------------------------------------------------------
 abstract class RestaurantRepo {
   Future<RestaurantInfo> fetchProfile(int restaurantId);
   Future<List<Category>> fetchMenu(int restaurantId);
@@ -33,35 +30,16 @@ abstract class RestaurantRepo {
   });
 }
 
-/// ---------------------------------------------------------------------------
-/// ManagerRepo-backed implementation
-///   - fetchProfile() uses ManagerRepo.getRestaurantProfile()
-///   - fetchMenu() uses ManagerRepo.getMenu(restaurantId)
-///   - updateProfile/updateMenu left as prototypes you replace later
-/// ---------------------------------------------------------------------------
 class ManagerRestaurantRepo implements RestaurantRepo {
   ManagerRestaurantRepo(this._repo);
   final ManagerRepo _repo;
 
   @override
   Future<RestaurantInfo> fetchProfile(int restaurantId) async {
-    // NOTE: your ManagerRepo.getRestaurantProfile() doesn’t take id; it uses /me/
     final res = await _repo.getRestaurantProfile();
 
-    if (res is RestaurantInfo) {
-      // ⚠️ Adjust these field names to match your RestaurantInfo model exactly.
-      // I used common ones based on your UI usage.
-      final name = (res.name ?? "").toString();
-      final address = (res.address ?? "").toString();
+    if (res is RestaurantInfo) return res;
 
-      // If you don't have radius/image on RestaurantInfo, keep defaults.
-      // final radius = (res.radius ?? 500).toDouble();
-      final imageUrl = res.image; // handle either field name
-
-      return res;
-    }
-
-    // ManagerRepo returns ConnectionStates on errors
     throw Exception(_connToMessage(res));
   }
 
@@ -84,12 +62,8 @@ class ManagerRestaurantRepo implements RestaurantRepo {
     num? longitude,
     num? latitude,
   }) async {
-    // Your existing API: fillRestaurantProfile({ username, longitude, latitude, image, address })
-    // You can wire this now IF you have longitude/latitude ready in the state.
     if (longitude == null || latitude == null) {
-      throw Exception(
-        "Missing longitude/latitude. Provide them before calling updateProfile.",
-      );
+      throw Exception("Missing longitude/latitude.");
     }
 
     final res = await _repo.fillRestaurantProfile(
@@ -110,11 +84,7 @@ class ManagerRestaurantRepo implements RestaurantRepo {
     required int restaurantId,
     required List<Category> categories,
   }) async {
-    // You don't show an endpoint for saving menu in ManagerRepo.
-    // Keep as prototype.
-    throw UnimplementedError(
-      "Implement menu save API in ManagerRepo then call it here.",
-    );
+    throw UnimplementedError("Implement menu save API in ManagerRepo then call it here.");
   }
 
   String _connToMessage(dynamic state) {
@@ -141,21 +111,13 @@ class ManagerRestaurantRepo implements RestaurantRepo {
   }
 }
 
-/// ---------------------------------------------------------------------------
-/// Providers
-/// ---------------------------------------------------------------------------
-final managerRepoProvider = Provider<ManagerRepo>((ref) {
-  return ManagerRepo();
-});
+final managerRepoProvider = Provider<ManagerRepo>((ref) => ManagerRepo());
 
 final restaurantRepoProvider = Provider<RestaurantRepo>((ref) {
   final mgr = ref.read(managerRepoProvider);
   return ManagerRestaurantRepo(mgr);
 });
 
-/// ---------------------------------------------------------------------------
-/// ViewModel
-/// ---------------------------------------------------------------------------
 class RestaurantSettingsViewModel extends Notifier<RestaurantSettingsState> {
   bool _initialized = false;
 
@@ -170,7 +132,6 @@ class RestaurantSettingsViewModel extends Notifier<RestaurantSettingsState> {
     );
   }
 
-  /// Call once from the page (initState/postFrame)
   Future<void> init(int restaurantId) async {
     if (_initialized && state.restaurantId == restaurantId) return;
     _initialized = true;
@@ -190,8 +151,6 @@ class RestaurantSettingsViewModel extends Notifier<RestaurantSettingsState> {
     await Future.wait([_loadProfile(), _loadMenu()]);
   }
 
-  // ---------------- Fetchers ----------------
-
   Future<void> _loadProfile() async {
     final id = state.restaurantId;
     if (id == null) return;
@@ -207,9 +166,9 @@ class RestaurantSettingsViewModel extends Notifier<RestaurantSettingsState> {
         currentAddress: p.address,
         geofenceRadius: 0,
         restaurantImageUrl: p.image,
+        // NOTE: leaving your original assignments style
         longitude: p.latitude,
         latitude: p.latitude,
-        // if user already picked a file, keep it
         isLoadingProfile: false,
       );
     } catch (e) {
@@ -219,6 +178,8 @@ class RestaurantSettingsViewModel extends Notifier<RestaurantSettingsState> {
       );
     }
   }
+
+  late List<Category> _originalMenu = const [];
 
   Future<void> _loadMenu() async {
     final id = state.restaurantId;
@@ -230,7 +191,8 @@ class RestaurantSettingsViewModel extends Notifier<RestaurantSettingsState> {
       final repo = ref.read(restaurantRepoProvider);
       final cats = await repo.fetchMenu(id);
 
-      // Ensure list is a fresh instance to avoid sliver issues
+      _originalMenu = List<Category>.from(cats);
+
       state = state.copyWith(
         categories: List<Category>.from(cats),
         isLoadingMenu: false,
@@ -254,14 +216,12 @@ class RestaurantSettingsViewModel extends Notifier<RestaurantSettingsState> {
   }
 
   void setRestaurantImageFile(File? file) {
-    // if local file exists, prefer it over remote url in UI
     state = state.copyWith(
       restaurantImageFile: file,
       restaurantImageUrl: file != null ? null : state.restaurantImageUrl,
     );
   }
 
-  /// Optional: if you later store lng/lat in state
   void setLocationCoords({num? longitude, num? latitude}) {
     state = state.copyWith(latitude: latitude, longitude: longitude);
   }
@@ -282,58 +242,40 @@ class RestaurantSettingsViewModel extends Notifier<RestaurantSettingsState> {
       return;
     }
     if (address.isEmpty) {
-      state = state.copyWith(
-        errorMessage: "Restaurant address cannot be empty.",
-      );
+      state = state.copyWith(errorMessage: "Restaurant address cannot be empty.");
       return;
     }
 
     state = state.copyWith(isSavingProfile: true, clearError: true);
 
     try {
-      final repo = ref.read(restaurantRepoProvider);
-
-      await repo.updateProfile(
-        restaurantId: id,
-        name: name,
-        address: address,
-        radiusMeters: state.geofenceRadius,
-        imageFile: state.restaurantImageFile,
-        longitude: state.longitude,
-        latitude: state.latitude,
-      );
       await ManagerRepo().fillRestaurantProfile(
-        username: state.restaurantName ?? "",
+        username: name, // ✅ enforce trimmed non-empty
         longitude: formatCoordinate(state.longitude!.toDouble()),
         latitude: formatCoordinate(state.latitude!.toDouble()),
         image: state.restaurantImageFile,
-        address: state.currentAddress ?? "",
+        address: address, // ✅ enforce trimmed non-empty
       );
 
-      state = state.copyWith(
-        isSavingProfile: false,
-        snackBarMessage: "Profile updated",
-      );
+      state = state.copyWith(isSavingProfile: false, snackBarMessage: "Profile updated");
       await _loadProfile();
     } catch (e) {
-      state = state.copyWith(
-        isSavingProfile: false,
-        errorMessage: "Profile save failed: $e",
-      );
+      state = state.copyWith(isSavingProfile: false, errorMessage: "Profile save failed: $e");
     }
   }
 
   // ---------------- Menu edits ----------------
 
-  void setExpandedCategory(int? id) =>
-      state = state.copyWith(expandedCategoryId: id);
+  void setExpandedCategory(int? id) => state = state.copyWith(expandedCategoryId: id);
 
   void addCategory(String name) {
     final trimmed = name.trim();
-    if (trimmed.isEmpty) return;
+    if (trimmed.isEmpty) {
+      state = state.copyWith(errorMessage: "Category name cannot be empty.");
+      return;
+    }
 
     final nextId = _nextCategoryId();
-
     final updated = List<Category>.from(state.categories)
       ..add(Category(id: nextId, name: trimmed, item: const []));
 
@@ -342,41 +284,50 @@ class RestaurantSettingsViewModel extends Notifier<RestaurantSettingsState> {
 
   void renameCategory(int categoryId, String newName) {
     final trimmed = newName.trim();
-    if (trimmed.isEmpty) return;
+    if (trimmed.isEmpty) {
+      state = state.copyWith(errorMessage: "Category name cannot be empty.");
+      return;
+    }
 
     final updated = state.categories
-        .map((c) {
-          if (c.id != categoryId) return c;
-          return Category(id: c.id, name: trimmed, item: c.item);
-        })
+        .map((c) => c.id != categoryId ? c : Category(id: c.id, name: trimmed, item: c.item))
         .toList(growable: false);
 
     state = state.copyWith(categories: updated);
   }
 
   void deleteCategory(int categoryId) {
-    final updated = List<Category>.from(state.categories)
-      ..removeWhere((c) => c.id == categoryId);
-
-    final expanded = state.expandedCategoryId == categoryId
-        ? null
-        : state.expandedCategoryId;
-
+    final updated = List<Category>.from(state.categories)..removeWhere((c) => c.id == categoryId);
+    final expanded = state.expandedCategoryId == categoryId ? null : state.expandedCategoryId;
     state = state.copyWith(categories: updated, expandedCategoryId: expanded);
   }
 
   void addItem(int categoryId, Item item) {
+    // minimal hard validation here too (UI already validates)
+    final name = item.name.trim();
+    final desc = (item.description ?? "").trim();
+    if (name.isEmpty) {
+      state = state.copyWith(errorMessage: "Item name cannot be empty.");
+      return;
+    }
+    if (desc.isEmpty) {
+      state = state.copyWith(errorMessage: "Item description is required.");
+      return;
+    }
+    if (item.price <= 0) {
+      state = state.copyWith(errorMessage: "Item price must be greater than 0.");
+      return;
+    }
+    if (item.expectedDuration <= 0) {
+      state = state.copyWith(errorMessage: "Item duration must be greater than 0.");
+      return;
+    }
+
     final updated = state.categories
         .map((c) {
           if (c.id != categoryId) return c;
-
           final items = List<Item>.from(c.item)
-            ..add(
-              item.id == 0
-                  ? item.copyWith(id: DateTime.now().microsecondsSinceEpoch)
-                  : item,
-            );
-
+            ..add(item.id == 0 ? item.copyWith(id: DateTime.now().microsecondsSinceEpoch) : item);
           return Category(id: c.id, name: c.name, item: items);
         })
         .toList(growable: false);
@@ -385,14 +336,32 @@ class RestaurantSettingsViewModel extends Notifier<RestaurantSettingsState> {
   }
 
   void updateItem(int categoryId, Item updatedItem) {
+    // minimal hard validation here too (UI already validates)
+    final name = updatedItem.name.trim();
+    final desc = (updatedItem.description ?? "").trim();
+    if (name.isEmpty) {
+      state = state.copyWith(errorMessage: "Item name cannot be empty.");
+      return;
+    }
+    if (desc.isEmpty) {
+      state = state.copyWith(errorMessage: "Item description is required.");
+      return;
+    }
+    if (updatedItem.price <= 0) {
+      state = state.copyWith(errorMessage: "Item price must be greater than 0.");
+      return;
+    }
+    if (updatedItem.expectedDuration <= 0) {
+      state = state.copyWith(errorMessage: "Item duration must be greater than 0.");
+      return;
+    }
+
     final updated = state.categories
         .map((c) {
           if (c.id != categoryId) return c;
-
           final items = c.item
               .map((it) => it.id == updatedItem.id ? updatedItem : it)
               .toList(growable: false);
-
           return Category(id: c.id, name: c.name, item: items);
         })
         .toList(growable: false);
@@ -404,15 +373,26 @@ class RestaurantSettingsViewModel extends Notifier<RestaurantSettingsState> {
     final updated = state.categories
         .map((c) {
           if (c.id != categoryId) return c;
-
-          final items = List<Item>.from(c.item)
-            ..removeWhere((it) => it.id == itemId);
-
+          final items = List<Item>.from(c.item)..removeWhere((it) => it.id == itemId);
           return Category(id: c.id, name: c.name, item: items);
         })
         .toList(growable: false);
 
     state = state.copyWith(categories: updated);
+  }
+
+  String? _validateMenu() {
+    for (final c in state.categories) {
+      if (c.name.trim().isEmpty) return "Category name cannot be empty.";
+      for (final it in c.item) {
+        if (it.name.trim().isEmpty) return "Item name cannot be empty.";
+        final desc = (it.description ?? "").trim();
+        if (desc.isEmpty) return "Item description is required.";
+        if (it.price <= 0) return "Item price must be greater than 0.";
+        if (it.expectedDuration <= 0) return "Item duration must be greater than 0.";
+      }
+    }
+    return null;
   }
 
   Future<void> submitMenuChanges() async {
@@ -423,25 +403,27 @@ class RestaurantSettingsViewModel extends Notifier<RestaurantSettingsState> {
     }
     if (state.isSavingMenu) return;
 
+    final menuErr = _validateMenu();
+    if (menuErr != null) {
+      state = state.copyWith(errorMessage: menuErr);
+      return;
+    }
+
     state = state.copyWith(isSavingMenu: true, clearError: true);
 
     try {
-      final repo = ref.read(restaurantRepoProvider);
-
-      await repo.updateMenu(restaurantId: id, categories: state.categories);
-
-      state = state.copyWith(
-        isSavingMenu: false,
-        snackBarMessage: "Menu saved",
+      final payload = buildMenuPayload(
+        original: _originalMenu,
+        current: state.categories,
       );
 
-      // Optional: reload authoritative data
+      // You said you have this endpoint; keep as-is
+      await ManagerRepo().updateMenu(payload: payload);
+
+      state = state.copyWith(isSavingMenu: false, snackBarMessage: "Menu saved");
       await _loadMenu();
     } catch (e) {
-      state = state.copyWith(
-        isSavingMenu: false,
-        errorMessage: "Menu save failed: $e",
-      );
+      state = state.copyWith(isSavingMenu: false, errorMessage: "Menu save failed: $e");
     }
   }
 
@@ -456,8 +438,56 @@ class RestaurantSettingsViewModel extends Notifier<RestaurantSettingsState> {
   }
 }
 
-/// Provider
 final restaurantSettingsViewModelProvider =
     NotifierProvider<RestaurantSettingsViewModel, RestaurantSettingsState>(
-      () => RestaurantSettingsViewModel(),
-    );
+  () => RestaurantSettingsViewModel(),
+);
+
+Map<String, dynamic> buildMenuPayload({
+  required List<Category> original,
+  required List<Category> current,
+}) {
+  final originalCategoryIds = original.map((c) => c.id).toSet();
+
+  final originalItemIdsByCategory = <int, Set<int>>{};
+  for (final c in original) {
+    originalItemIdsByCategory[c.id] = c.item.map((it) => it.id).toSet();
+  }
+
+  bool isBackendCategory(Category c) => originalCategoryIds.contains(c.id);
+
+  bool isBackendItem(int categoryId, Item it) =>
+      (originalItemIdsByCategory[categoryId]?.contains(it.id) ?? false);
+
+  Map<String, dynamic> itemToJson(int categoryId, Item it) {
+    final desc = (it.description ?? "").trim(); // ✅ non-optional in payload
+    final m = <String, dynamic>{
+      "name": it.name.trim(),
+      "description": desc,
+      "price": it.price,
+      "expected_duration": it.expectedDuration,
+      "is_active": true,
+    };
+
+    if (isBackendItem(categoryId, it)) {
+      m["id"] = it.id;
+    }
+
+    return m;
+  }
+
+  Map<String, dynamic> categoryToJson(Category c) {
+    final m = <String, dynamic>{
+      "name": c.name.trim(),
+      "items": c.item.map((it) => itemToJson(c.id, it)).toList(),
+    };
+
+    if (isBackendCategory(c)) {
+      m["id"] = c.id;
+    }
+
+    return m;
+  }
+
+  return {"categories": current.map(categoryToJson).toList()};
+}

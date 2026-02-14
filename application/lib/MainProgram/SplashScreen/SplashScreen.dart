@@ -1,3 +1,6 @@
+// SplashScreen.dart (adds version-control dialog; keeps your flow)
+// NOTE: I only added version check + dialog plumbing. Your routing logic stays the same.
+
 import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
 import 'package:application/GlobalWidgets/InternetManager/ConnectionStates.dart';
 import 'package:application/GlobalWidgets/NavigationServices/NavigationService.dart';
@@ -9,7 +12,6 @@ import 'package:application/MainProgram/Customer/DashboardCustomer/DashboardCust
 import 'package:application/MainProgram/Login/Login.dart';
 import 'package:application/MainProgram/Manager/DashboardManager/DashboardManager.dart';
 import 'package:application/MainProgram/OnBoarding/OnBoarding.dart';
-import 'package:application/SourceDesign/Enums/AccountTypes.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
@@ -35,24 +37,23 @@ class _SplashScreenState extends State<SplashScreen>
 
     textController = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 1200),
     );
 
-    textFade = Tween<double>(
-      begin: 0,
-      end: 1,
-    ).animate(CurvedAnimation(parent: textController, curve: Curves.easeOut));
+    textFade = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: textController, curve: Curves.easeOut),
+    );
 
-    textSlide = Tween<Offset>(
-      begin: Offset(0, 0.2),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: textController, curve: Curves.easeOut));
+    textSlide = Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero)
+        .animate(
+      CurvedAnimation(parent: textController, curve: Curves.easeOut),
+    );
 
     textController.forward();
 
     bubbleController = AnimationController(
       vsync: this,
-      duration: Duration(seconds: 100),
+      duration: const Duration(seconds: 100),
     )..repeat(reverse: true);
 
     _goNextAfterDelay();
@@ -61,6 +62,21 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _goNextAfterDelay() async {
     await Future.delayed(const Duration(seconds: 3));
 
+    // ✅ 1) Version check first
+    final versionCheck = await LoginRepo().versionCheck();
+    if (!mounted) return;
+
+    // if backend says update required => block and show dialog
+    if (versionCheck is bool && versionCheck == true) {
+      setState(() => isLoading = false);
+      await _showForceUpdateDialog(context);
+      return; // stop flow
+    }
+
+    // optional: if version check failed, let user continue (or you can show a soft banner)
+    // if (versionCheck is ConnectionStates) { ... }
+
+    // ✅ 2) Your onboarding + token flow (unchanged)
     final dontGoToOnboarding = (await TokenStore.getInOnboarding() ?? false);
     if (!dontGoToOnboarding) {
       var route = AppRoutes.fade(OnBoardingScreen());
@@ -69,20 +85,24 @@ class _SplashScreenState extends State<SplashScreen>
     }
 
     final data = await LoginRepo().verifyToken();
-
     if (!mounted) return;
 
     if (data != ConnectionStates && data) {
       final role = await LoginRepo().getRole();
+
       var route = (role["role"] == "customer"
           ? AppRoutes.fade(DashboardCustomer(initialPage: 0))
           : role["complete"]
-          ? AppRoutes.fade(DashboardManager(initialPage: 0))
-          : null);
+              ? AppRoutes.fade(DashboardManager(initialPage: 0))
+              : null);
+
       if (route == null) {
         var firstRoute = AppRoutes.fade(LoginPage());
         var secondRoute = AppRoutes.fade(
-          MapBuilder(username: role["username"] ?? "", callBackFunction: null,),
+          MapBuilder(
+            username: role["username"] ?? "",
+            callBackFunction: null,
+          ),
         );
         NavigationService.replace(firstRoute);
         NavigationService.push(secondRoute);
@@ -98,6 +118,88 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
+  // -------------------------
+  // Version control dialog
+  // -------------------------
+
+  Future<void> _showForceUpdateDialog(BuildContext context) async {
+    final t = Theme.of(context).textTheme;
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: AppColors.background,
+          surfaceTintColor: AppColors.background,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.system_update_rounded,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  "Update required",
+                  style: t.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            "A newer version of DriveOrder is available. Please update to continue using the app.",
+            style: t.bodyMedium?.copyWith(
+              color: Colors.black.withOpacity(0.70),
+              fontWeight: FontWeight.w600,
+              height: 1.25,
+            ),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                onPressed: () async {
+                  // TODO: replace with your real store link
+                  // const playStoreUrl =
+                  //     "https://play.google.com/store/apps/details?id=com.example.driveThru";
+                  // final uri = Uri.parse(playStoreUrl);
+
+                  // await launchUrl(
+                  //   uri,
+                  //   mode: LaunchMode.externalApplication,
+                  // );
+                },
+                child: Text(
+                  "Update now",
+                  style: t.labelLarge?.copyWith(fontWeight: FontWeight.w900),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     textController.dispose();
@@ -111,7 +213,7 @@ class _SplashScreenState extends State<SplashScreen>
       body: Stack(
         children: [
           Container(
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFFFF7A00), Color(0xFFFF6200)],
                 begin: Alignment.topCenter,
@@ -119,7 +221,6 @@ class _SplashScreenState extends State<SplashScreen>
               ),
             ),
           ),
-
           AnimatedBuilder(
             animation: bubbleController,
             builder: (_, __) {
@@ -135,7 +236,6 @@ class _SplashScreenState extends State<SplashScreen>
               );
             },
           ),
-
           SlideTransition(
             position: textSlide,
             child: FadeTransition(
@@ -143,44 +243,44 @@ class _SplashScreenState extends State<SplashScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(height: 120),
+                  const SizedBox(height: 120),
                   Container(
                     width: 128,
                     height: 128,
-                    padding: EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 4),
                     ),
-                    child: Icon(
+                    child: const Icon(
                       Icons.directions_car,
                       color: Colors.white,
                       size: 48,
                     ),
                   ),
-                  SizedBox(height: 24),
+                  const SizedBox(height: 24),
                   Text(
                     "DriveOrder",
                     style: Theme.of(context).textTheme.bodyLarge!.copyWith(
-                      color: AppColors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                    ),
+                          color: AppColors.white,
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(
                     "Drive-Through Made Easy",
                     style: Theme.of(context).textTheme.headlineLarge!.copyWith(
-                      color: AppColors.white.withOpacity(0.8),
-                    ),
+                          color: AppColors.white.withOpacity(0.8),
+                        ),
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   Text(
                     "Order ahead, skip the wait.\nYour food ready when you arrive.",
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyLarge!.copyWith(
-                      color: AppColors.white.withOpacity(0.7),
-                    ),
+                          color: AppColors.white.withOpacity(0.7),
+                        ),
                   ),
                   SizedBox(
                     height: 150,
@@ -196,7 +296,9 @@ class _SplashScreenState extends State<SplashScreen>
                                 Text(
                                   "Loading your experience",
                                   textAlign: TextAlign.center,
-                                  style: Theme.of(context).textTheme.bodyLarge!
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyLarge!
                                       .copyWith(
                                         color: AppColors.white.withOpacity(0.7),
                                       ),
@@ -232,13 +334,13 @@ class _SplashScreenState extends State<SplashScreen>
                         ],
                       ),
                     ),
-                    SizedBox(height: 40),
+                    const SizedBox(height: 40),
                     Text(
                       "Version 1.0.0",
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                        color: AppColors.white.withOpacity(0.7),
-                      ),
+                            color: AppColors.white.withOpacity(0.7),
+                          ),
                     ),
                   ],
                 ),
@@ -269,14 +371,14 @@ class _SplashScreenState extends State<SplashScreen>
             ),
           ),
         ),
-        SizedBox(height: 6),
+        const SizedBox(height: 6),
         Text(
           text,
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-            fontSize: 12,
-            color: AppColors.white.withOpacity(0.7),
-          ),
+                fontSize: 12,
+                color: AppColors.white.withOpacity(0.7),
+              ),
         ),
       ],
     );

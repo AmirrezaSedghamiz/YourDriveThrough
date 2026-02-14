@@ -159,7 +159,6 @@ class CustomerRepo {
         "phone": kwargs['username'],
       });
     }
-    print(data.toString());
     return await HttpClient.instance.post(
       'me/customer/profile/update/',
       options: options,
@@ -249,7 +248,6 @@ class CustomerRepo {
   Future<Response> _getRestaurantListBySearchRequest(
     Map<String, dynamic> kwargs,
   ) async {
-    print("SHIT IS GOING ON");
     Options options = Options(
       followRedirects: false,
       validateStatus: (status) {
@@ -269,8 +267,6 @@ class CustomerRepo {
   }
 
   Future<dynamic> _getRestaurantListBySearchHandler(Response response) async {
-    print(response.data);
-    print(response.statusCode);
     if (response.statusCode == 200) {
       List<RestaurantInfo> restaurants = [];
       for (var i in response.data['results']) {

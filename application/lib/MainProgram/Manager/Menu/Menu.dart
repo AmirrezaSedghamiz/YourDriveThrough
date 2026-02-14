@@ -1,5 +1,4 @@
 // RestaurantSettings.dart
-
 import 'dart:io';
 
 import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
@@ -18,13 +17,12 @@ import 'package:application/SourceDesign/Models/Item.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:location/location.dart';
 
 class RestaurantSettings extends ConsumerStatefulWidget {
   const RestaurantSettings({
     super.key,
     required this.callback,
-    required this.restaurantId, // ✅ pass id to load from backend
+    required this.restaurantId,
   });
 
   final VoidCallback callback;
@@ -88,6 +86,10 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
     super.dispose();
   }
 
+  void _toast(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -120,16 +122,16 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
                   Row(
                     children: [
                       _ImageCircle(
-                        file:  state.restaurantImageFile,
-                        imageUrl: HttpClient.instanceImage + (state.restaurantImageUrl ?? ""),
+                        file: state.restaurantImageFile,
+                        imageUrl:
+                            HttpClient.instanceImage +
+                            (state.restaurantImageUrl ?? ""),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: () async {
                             final picker = ImagePickerService(context: context);
-
-                            // ✅ Prototype call (see ImagePickerService prototype below)
                             await picker.pickImage();
                             _pickedImage = picker.image;
                             vm.setRestaurantImageFile(picker.image);
@@ -241,11 +243,11 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
                         var route = AppRoutes.fade(
                           MapBuilder(
                             username: "",
-                            callBackFunction:
-                                (String address, LatLng loc) {
-                                  vm.setAddress(address);
-                                  vm.setLocationCoords();
-                                },
+                            callBackFunction: (String address, LatLng loc) {
+                              vm.setAddress(address);
+                              // keep your original behavior
+                              vm.setLocationCoords();
+                            },
                           ),
                         );
                         NavigationService.push(route);
@@ -265,7 +267,19 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
                     isLoading: state.isSavingProfile,
                     onTap: state.isSavingProfile
                         ? null
-                        : vm.submitProfileChanges,
+                        : () async {
+                            await vm.submitProfileChanges();
+
+                            // if save succeeded, refresh parent profile
+                            // (we can detect success by checking errorMessage / snackBarMessage)
+                            final s = ref.read(
+                              restaurantSettingsViewModelProvider,
+                            );
+                            if ((s.errorMessage ?? "").isEmpty) {
+                              widget
+                                  .callback(); // ✅ this calls getRestaurant() in DashboardManager
+                            }
+                          },
                     backgroundColor: AppColors.primary,
                     textColor: AppColors.white,
                   ),
@@ -487,7 +501,14 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
       ),
     );
 
-    if (ok == true) vm.addCategory(c.text);
+    if (ok == true) {
+      final name = c.text.trim();
+      if (name.isEmpty) {
+        _toast("Category name cannot be empty.");
+        return;
+      }
+      vm.addCategory(name);
+    }
   }
 
   Future<void> _editCategoryDialog(
@@ -523,7 +544,14 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
       ),
     );
 
-    if (ok == true) vm.renameCategory(category.id, c.text);
+    if (ok == true) {
+      final name = c.text.trim();
+      if (name.isEmpty) {
+        _toast("Category name cannot be empty.");
+        return;
+      }
+      vm.renameCategory(category.id, name);
+    }
   }
 
   Future<void> _addOrEditItemSheet(
@@ -610,12 +638,12 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
                 ],
               ),
               const SizedBox(height: 10),
-              _field(ctx, controller: descC, hint: "Description (optional)"),
+              _field(ctx, controller: descC, hint: "Description"),
               const SizedBox(height: 12),
 
               SizedBox(
                 width: double.infinity,
-                height: 46,
+                height: 50,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
@@ -625,21 +653,54 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
                   ),
                   onPressed: () {
                     final name = nameC.text.trim();
-                    if (name.isEmpty) return;
+                    final desc = descC.text.trim();
+                    final priceText = priceC.text.trim();
+                    final durText = durC.text.trim();
 
-                    final price = num.tryParse(priceC.text.trim()) ?? 0;
-                    final dur = num.tryParse(durC.text.trim()) ?? 0;
+                    if (name.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Item name cannot be empty."),
+                        ),
+                      );
+                      return;
+                    }
+                    if (desc.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Description is required."),
+                        ),
+                      );
+                      return;
+                    }
+
+                    final price = num.tryParse(priceText);
+                    if (price == null || price <= 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Price must be greater than 0."),
+                        ),
+                      );
+                      return;
+                    }
+
+                    final dur = num.tryParse(durText);
+                    if (dur == null || dur <= 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Duration must be greater than 0."),
+                        ),
+                      );
+                      return;
+                    }
 
                     if (existing == null) {
                       final newItem = Item(
-                        id: DateTime.now()
-                            .millisecondsSinceEpoch, // temp local id
+                        id: DateTime.now().millisecondsSinceEpoch,
                         name: name,
                         price: price,
                         expectedDuration: dur,
-                        description: descC.text.trim().isEmpty
-                            ? null
-                            : descC.text.trim(),
+                        description: desc,
                       );
                       vm.addItem(categoryId, newItem);
                     } else {
@@ -649,9 +710,7 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
                         image: existing.image,
                         expectedDuration: dur,
                         price: price,
-                        description: descC.text.trim().isEmpty
-                            ? null
-                            : descC.text.trim(),
+                        description: desc,
                       );
                       vm.updateItem(categoryId, updated);
                     }
@@ -702,14 +761,6 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
 
   @override
   bool get wantKeepAlive => true;
-}
-
-// ✅ prototype address picker (replace with your map UI)
-Future<String?> _fakePickAddress(
-  BuildContext context, {
-  String? initial,
-}) async {
-  return "456 New Street, Anytown, CA 90210";
 }
 
 class _CategoryTile extends StatelessWidget {
@@ -775,7 +826,6 @@ class _CategoryTile extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 10),
-
                   AnimatedRotation(
                     turns: expanded ? 0.5 : 0.0,
                     duration: const Duration(milliseconds: 220),
@@ -785,7 +835,6 @@ class _CategoryTile extends StatelessWidget {
                       color: Colors.black.withOpacity(0.55),
                     ),
                   ),
-
                   PopupMenuButton<String>(
                     onSelected: (v) {
                       if (v == "edit") onEdit();
@@ -800,7 +849,6 @@ class _CategoryTile extends StatelessWidget {
               ),
             ),
           ),
-
           AnimatedCrossFade(
             duration: const Duration(milliseconds: 240),
             reverseDuration: const Duration(milliseconds: 180),
@@ -875,7 +923,6 @@ class _CategoryTile extends StatelessWidget {
                           ),
                         ),
                       ),
-
                       AppTapRowButton(
                         text: "Add Item",
                         icon: Icons.add,
@@ -967,7 +1014,6 @@ class _Shimmer extends StatefulWidget {
     required this.child,
     this.period = const Duration(milliseconds: 1200),
   });
-
   final Widget child;
   final Duration period;
 
@@ -993,7 +1039,6 @@ class _ShimmerState extends State<_Shimmer>
 
   @override
   Widget build(BuildContext context) {
-    // base colors
     final base = Colors.black.withOpacity(0.06);
     final highlight = Colors.black.withOpacity(0.14);
 
@@ -1003,8 +1048,8 @@ class _ShimmerState extends State<_Shimmer>
         return ShaderMask(
           blendMode: BlendMode.srcATop,
           shaderCallback: (rect) {
-            final t = _c.value; // 0..1
-            final dx = rect.width * (t * 2 - 1); // -w..+w
+            final t = _c.value;
+            final dx = rect.width * (t * 2 - 1);
             return LinearGradient(
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
@@ -1037,7 +1082,6 @@ class _Skel extends StatelessWidget {
     this.r = 12,
     this.shape = BoxShape.rectangle,
   });
-
   final double h;
   final double? w;
   final double r;
@@ -1059,7 +1103,6 @@ class _Skel extends StatelessWidget {
   }
 }
 
-// ---------- Profile shimmer block ----------
 class _ProfileShimmer extends StatelessWidget {
   const _ProfileShimmer();
 
@@ -1071,7 +1114,6 @@ class _ProfileShimmer extends StatelessWidget {
         children: const [
           _Skel(h: 18, w: 170, r: 8),
           SizedBox(height: 14),
-
           Row(
             children: [
               _Skel(h: 64, w: 64, shape: BoxShape.circle),
@@ -1079,27 +1121,22 @@ class _ProfileShimmer extends StatelessWidget {
               Expanded(child: _Skel(h: 44, r: 12)),
             ],
           ),
-
           SizedBox(height: 14),
           _Skel(h: 12, w: 120, r: 8),
           SizedBox(height: 10),
           _Skel(h: 48, r: 12),
-
           SizedBox(height: 18),
           _Skel(h: 14, w: 140, r: 8),
           SizedBox(height: 10),
           _Skel(h: 12, w: 220, r: 8),
           SizedBox(height: 6),
           _Skel(h: 12, w: 200, r: 8),
-
           SizedBox(height: 14),
           _Skel(h: 12, w: 120, r: 8),
           SizedBox(height: 10),
           _Skel(h: 46, r: 12),
-
           SizedBox(height: 14),
           Align(alignment: Alignment.center, child: _Skel(h: 18, w: 160, r: 8)),
-
           SizedBox(height: 16),
           _Skel(h: 46, r: 12),
         ],
@@ -1108,7 +1145,6 @@ class _ProfileShimmer extends StatelessWidget {
   }
 }
 
-// ---------- Menu shimmer block ----------
 class _MenuShimmer extends StatelessWidget {
   const _MenuShimmer({this.count = 3});
   final int count;
@@ -1125,7 +1161,6 @@ class _MenuShimmer extends StatelessWidget {
           const SizedBox(height: 6),
           const _Skel(h: 12, w: 220, r: 8),
           const SizedBox(height: 14),
-
           ...List.generate(count, (i) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
@@ -1155,11 +1190,10 @@ class _MenuShimmer extends StatelessWidget {
               ),
             );
           }),
-
           const SizedBox(height: 4),
-          const _Skel(h: 44, r: 12), // add category button
+          const _Skel(h: 44, r: 12),
           const SizedBox(height: 12),
-          const _Skel(h: 46, r: 12), // submit menu
+          const _Skel(h: 46, r: 12),
         ],
       ),
     );

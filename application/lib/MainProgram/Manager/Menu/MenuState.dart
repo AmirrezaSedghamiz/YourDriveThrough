@@ -77,9 +77,8 @@ class RestaurantSettingsState {
       restaurantName: restaurantName ?? this.restaurantName,
       currentAddress: currentAddress ?? this.currentAddress,
       geofenceRadius: geofenceRadius ?? this.geofenceRadius,
-      restaurantImageFile: clearImageFile
-          ? null
-          : (restaurantImageFile ?? this.restaurantImageFile),
+      restaurantImageFile:
+          clearImageFile ? null : (restaurantImageFile ?? this.restaurantImageFile),
       restaurantImageUrl: restaurantImageUrl ?? this.restaurantImageUrl,
       categories: categories ?? this.categories,
       expandedCategoryId: expandedCategoryId ?? this.expandedCategoryId,
@@ -87,9 +86,7 @@ class RestaurantSettingsState {
       isLoadingMenu: isLoadingMenu ?? this.isLoadingMenu,
       isSavingProfile: isSavingProfile ?? this.isSavingProfile,
       isSavingMenu: isSavingMenu ?? this.isSavingMenu,
-      snackBarMessage: clearSnack
-          ? null
-          : (snackBarMessage ?? this.snackBarMessage),
+      snackBarMessage: clearSnack ? null : (snackBarMessage ?? this.snackBarMessage),
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
   }

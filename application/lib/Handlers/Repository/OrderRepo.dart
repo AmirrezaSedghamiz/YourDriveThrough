@@ -148,8 +148,6 @@ class OrderRepo {
   }
 
   Future<dynamic> _updateStatusHandler(Response response) async {
-    print(response.data);
-    print(response.statusCode);
     if (response.statusCode == 200) {
       return ConnectionStates.Success;
     } else if (response.statusCode == 400) {
@@ -373,8 +371,6 @@ class OrderRepo {
   }
 
   Future<dynamic> _reportCustomerHandler(Response response) async {
-    print(response.statusCode);
-    print(response.data);
     if (response.statusCode == 200 || response.statusCode == 201) {
       return ConnectionStates.Success;
     } else if (response.statusCode == 400) {
@@ -429,8 +425,7 @@ class OrderRepo {
   }
 
   Future<dynamic> _reportRestaurantHandler(Response response) async {
-    print(response.statusCode);
-    print(response.data);
+
     if (response.statusCode == 200 || response.statusCode == 201) {
       return ConnectionStates.Success;
     } else if (response.statusCode == 400) {

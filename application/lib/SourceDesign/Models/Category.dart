@@ -7,11 +7,7 @@ class Category {
   String name;
   List<Item> item;
 
-  Category({
-    required this.id,
-    required this.name,
-    required this.item,
-  });
+  Category({required this.id, required this.name, required this.item});
 
   static int _int(dynamic v, {int fallback = 0}) {
     if (v == null) return fallback;
@@ -36,7 +32,6 @@ class Category {
 
   factory Category.fromMap(Map<String, dynamic> map) {
     final rawItems = (map['items'] as List? ?? const []);
-
     return Category(
       id: _int(map['id']),
       // backend may send "category" or "name"
@@ -62,7 +57,6 @@ List<Category> categoriesFromResponse(dynamic data) {
       .map((e) => Category.fromMap(e as Map<String, dynamic>))
       .toList();
 }
-
 
 List<Category> categoriesFromJson(String source) {
   final decoded = json.decode(source);
