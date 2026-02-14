@@ -29,7 +29,6 @@ class _DashboardManagerState extends ConsumerState<DashboardManager>
   late final PageController _pageController;
   DateTime? _lastPressedTime; // Just track the last press time
 
-  //TESTER
   bool flexTest = false;
 
   RestaurantInfo? myRestaurant;
@@ -176,20 +175,23 @@ class _DashboardManagerState extends ConsumerState<DashboardManager>
           children: [
             PendingOrdersPagedList(
               fetchPage: OrderRepo().getOrderList,
-              // onAccept: (order) => _api.accept(order.id),
-              // onDecline: (order) => _api.decline(order.id),
+              onAccept: (order) => OrderRepo().updateStatus(newStatus: 'accepted', orderId: order.id),
+              onDecline: (order) => OrderRepo().updateStatus(newStatus: 'failed', orderId: order.id),
               pageSize: 10,
               firstPageKey: 1,
             ),
             OnGoingOrdersPagedList(
               fetchPage: OrderRepo().getOrderList,
-              // onMarkReady: (order) => _api.accept(order.id),
+              onMarkReady: (order) => OrderRepo().updateStatus(newStatus: 'done', orderId: order.id),
               pageSize: 10,
               firstPageKey: 1,
             ),
             OrdersHistoryPagedList(fetchPage: OrderRepo().getOrderList),
 
-            RestaurantSettings(),
+            RestaurantSettings(
+              restaurantId: myRestaurant?.id ?? -1,
+              callback: getRestaurant,
+            ),
           ],
         ),
         bottomNavigationBar: Container(

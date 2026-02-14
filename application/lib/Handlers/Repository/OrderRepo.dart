@@ -355,4 +355,120 @@ class OrderRepo {
       'latitude': latitude,
     });
   }
+  //////////////////////////////////////////////////////
+
+  Future<Response> _reportCustomerRequest(Map<String, dynamic> kwargs) async {
+    Options options = Options(
+      followRedirects: false,
+      validateStatus: (status) {
+        return status! < 600;
+      },
+      headers: {'Authorization': await TokenStore.getAccessToken()},
+    );
+    return await HttpClient.instance.post(
+      'me/report/customer/',
+      options: options,
+      data: {'customer': kwargs['id'], 'description': kwargs['description']},
+    );
+  }
+
+  Future<dynamic> _reportCustomerHandler(Response response) async {
+    print(response.statusCode);
+    print(response.data);
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return ConnectionStates.Success;
+    } else if (response.statusCode == 400) {
+      return ConnectionStates.BadRequest;
+    } else if (response.statusCode == 401) {
+      return ConnectionStates.Unauthorized;
+    } else if (response.statusCode == 404) {
+      return ConnectionStates.TokenFailure;
+    } else {
+      if (response.statusCode == 500) {
+        return ConnectionStates.DataBase;
+      } else if (response.statusCode == 502) {
+        return ConnectionStates.BadGateWay;
+      } else if (response.statusCode == 504) {
+        return ConnectionStates.GateWayTimeOut;
+      } else {
+        return ConnectionStates.Unexpected;
+      }
+    }
+  }
+
+  Future<dynamic> _reportCustomerKwargBuilder(
+    Map<String, dynamic> kwargs,
+  ) async {
+    return handleErrors(kwargs, _reportCustomerRequest, _reportCustomerHandler);
+  }
+
+  Future<dynamic> reportCustomer({
+    required int customerId,
+    required String? description,
+  }) {
+    return _reportCustomerKwargBuilder({
+      'id': customerId,
+      'description': description,
+    });
+  }
+  ////////////////////
+
+  Future<Response> _reportRestaurantRequest(Map<String, dynamic> kwargs) async {
+    Options options = Options(
+      followRedirects: false,
+      validateStatus: (status) {
+        return status! < 600;
+      },
+      headers: {'Authorization': await TokenStore.getAccessToken()},
+    );
+    return await HttpClient.instance.post(
+      'me/report/restaurant/',
+      options: options,
+      data: {'restaurant': kwargs['id'], 'description': kwargs['description']},
+    );
+  }
+
+  Future<dynamic> _reportRestaurantHandler(Response response) async {
+    print(response.statusCode);
+    print(response.data);
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return ConnectionStates.Success;
+    } else if (response.statusCode == 400) {
+      return ConnectionStates.BadRequest;
+    } else if (response.statusCode == 401) {
+      return ConnectionStates.Unauthorized;
+    } else if (response.statusCode == 404) {
+      return ConnectionStates.TokenFailure;
+    } else {
+      if (response.statusCode == 500) {
+        return ConnectionStates.DataBase;
+      } else if (response.statusCode == 502) {
+        return ConnectionStates.BadGateWay;
+      } else if (response.statusCode == 504) {
+        return ConnectionStates.GateWayTimeOut;
+      } else {
+        return ConnectionStates.Unexpected;
+      }
+    }
+  }
+
+  Future<dynamic> _reportRestaurantKwargBuilder(
+    Map<String, dynamic> kwargs,
+  ) async {
+    return handleErrors(
+      kwargs,
+      _reportRestaurantRequest,
+      _reportRestaurantHandler,
+    );
+  }
+
+  Future<dynamic> reportRestaurant({
+    required int restaurantId,
+    required String? description,
+  }) {
+    return _reportRestaurantKwargBuilder({
+      'id': restaurantId,
+      'description': description,
+    });
+  }
 }

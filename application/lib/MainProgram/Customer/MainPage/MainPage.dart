@@ -70,50 +70,10 @@ class _CustomerHomePageState extends ConsumerState<CustomerHomePage> {
               ),
 
               if (state.showSearchResults) ...[
-                const SizedBox(height: 14),
-                Text(
-                  "Search Results",
-                  style: t.titleSmall?.copyWith(fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: 10),
+                
 
-                SizedBox(
-                  height: 300,
-                  child: PagedListView<int, RestaurantInfo>.separated(
-                    pagingController: vm.searchPagingController,
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    separatorBuilder: (_, __) => const SizedBox(width: 10),
-                    builderDelegate: PagedChildBuilderDelegate<RestaurantInfo>(
-                      itemBuilder: (ctx, r, i) => _RestaurantCard(
-                        r: r,
-                        onSelect: () {
-                          var route = AppRoutes.fade(
-                            RestaurantMenu(
-                              restaurantId: r.id ?? -1,
-                              restaurantName: r.name,
-                            ),
-                          );
-                          NavigationService.push(route);
-                        },
-                      ),
-                      firstPageProgressIndicatorBuilder: (_) =>
-                          _RestaurantCardSkeleton(),
-                      newPageProgressIndicatorBuilder: (_) =>
-                          _RestaurantCardSkeleton(),
-                      noItemsFoundIndicatorBuilder: (_) => Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Text(
-                          "No restaurants found.",
-                          style: t.bodyMedium?.copyWith(
-                            color: Colors.black.withOpacity(0.6),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                _SearchResultsStrip(vm: vm),
+
 
                 if (vm.searchPagingController.error != null) ...[
                   const SizedBox(height: 8),
@@ -453,14 +413,14 @@ class _RestaurantCard extends StatelessWidget {
                   ),
 
                 const SizedBox(height: 8),
-                Text(
+                if(r.duration != null) ... [ Text(
                   "• Detour +${(r.duration! / 60).toInt()} min",
                   style: t.bodySmall?.copyWith(
                     color: Colors.black.withOpacity(0.55),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 8),],
                 Text(
                   r.isOpen ? "Available" : "Closed",
                   style: t.bodySmall?.copyWith(
@@ -672,6 +632,104 @@ class _OrderCard extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _SearchResultsStrip extends StatefulWidget {
+  const _SearchResultsStrip({required this.vm});
+  final CustomerHomeViewModel vm;
+
+  @override
+  State<_SearchResultsStrip> createState() => _SearchResultsStripState();
+}
+
+class _SearchResultsStripState extends State<_SearchResultsStrip> {
+  @override
+  void initState() {
+    super.initState();
+    widget.vm.searchPagingController.addListener(_onPagingChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.vm.searchPagingController.removeListener(_onPagingChanged);
+    super.dispose();
+  }
+
+  void _onPagingChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final pc = widget.vm.searchPagingController;
+
+    // Determine loading + item count
+    final items = pc.itemList ?? const <RestaurantInfo>[];
+    final isLoadingFirstPage = pc.value.status == PagingStatus.loadingFirstPage;
+    final isLoadingMore = pc.value.status == PagingStatus.ongoing;
+    final isLoading = isLoadingFirstPage || isLoadingMore;
+
+    // ✅ If NOT loading and empty => show NOTHING (collapses)
+    if (!isLoading && items.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    // ✅ If loading or has items => show the strip (height only then)
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 14),
+                Text(
+                  "Search Results",
+                  style: t.titleSmall?.copyWith(fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 10),
+        SizedBox(
+          height: 250,
+          child: PagedListView<int, RestaurantInfo>.separated(
+            pagingController: pc,
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            builderDelegate: PagedChildBuilderDelegate<RestaurantInfo>(
+              itemBuilder: (ctx, r, i) => _RestaurantCard(
+                r: r,
+                onSelect: () {
+                  final id = r.id;
+                  if (id == null) return;
+                  var route = AppRoutes.fade(
+                    RestaurantMenu(
+                      restaurantId: id,
+                      restaurantName: r.name ?? "Restaurant",
+                    ),
+                  );
+                  NavigationService.push(route);
+                },
+              ),
+              firstPageProgressIndicatorBuilder: (_) => _RestaurantCardSkeleton(),
+              newPageProgressIndicatorBuilder: (_) => _RestaurantCardSkeleton(),
+        
+              // ✅ If search returns no items, show a *small* message (not inside 300px)
+              noItemsFoundIndicatorBuilder: (_) => Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    "No restaurants found.",
+                    style: t.bodyMedium?.copyWith(
+                      color: Colors.black.withOpacity(0.6),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

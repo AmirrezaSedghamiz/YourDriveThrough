@@ -21,11 +21,16 @@ import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:location/location.dart';
 
 class MapBuilder extends StatefulWidget {
-  const MapBuilder({super.key, required this.username, this.image, required this.callBackFunction});
+  const MapBuilder({
+    super.key,
+    required this.username,
+    this.image,
+    required this.callBackFunction,
+  });
 
   final String username;
   final File? image;
-  final VoidCallback? callBackFunction;
+  final Function(String, LatLng)? callBackFunction;
 
   @override
   State<MapBuilder> createState() => _MapBuilderState();
@@ -157,6 +162,14 @@ class _MapBuilderState extends State<MapBuilder> {
                     'reverse?lat=${selectedLocation!.latitude}&lng=${selectedLocation!.longitude}',
                     options: HttpClient.globalHeader,
                   );
+                  if (widget.callBackFunction != null) {
+                    widget.callBackFunction!(
+                      address.data['formatted_address'],
+                      selectedLocation!,
+                    );
+                    NavigationService.pop();
+                    return;
+                  }
                   await ManagerRepo()
                       .fillRestaurantProfile(
                         username: widget.username,

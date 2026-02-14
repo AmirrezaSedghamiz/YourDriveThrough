@@ -1,6 +1,8 @@
+
 import 'dart:io';
 
 import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
+import 'package:application/GlobalWidgets/InternetManager/HttpClient.dart';
 import 'package:application/GlobalWidgets/NavigationServices/NavigationService.dart';
 import 'package:application/GlobalWidgets/NavigationServices/RouteFactory.dart';
 import 'package:application/GlobalWidgets/Services/Tapsell.dart';
@@ -23,26 +25,34 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   late final TextEditingController _userC;
   late final TextEditingController _passC;
 
+  late final ProviderSubscription<ProfileState> _profileSub;
+
   @override
-void initState() {
-  super.initState();
-  final s = ref.read(profileViewModelProvider);
-  _userC = TextEditingController(text: s.username);
-  _passC = TextEditingController(text: s.password);
+  void initState() {
+    super.initState();
 
-  ref.listen<ProfileState>(profileViewModelProvider, (prev, next) {
-    if (prev?.username != next.username && _userC.text != next.username) {
-      _userC.text = next.username;
-    }
-    if (prev?.password != next.password && _passC.text != next.password) {
-      _passC.text = next.password;
-    }
-  });
-}
+    final s = ref.read(profileViewModelProvider);
 
+    _userC = TextEditingController(text: s.username);
+    _passC = TextEditingController(text: s.password);
+
+    _profileSub = ref.listenManual<ProfileState>(profileViewModelProvider, (
+      prev,
+      next,
+    ) {
+      // keep controllers in sync (without fighting user typing)
+      if (prev?.username != next.username && _userC.text != next.username) {
+        _userC.text = next.username;
+      }
+      if (prev?.password != next.password && _passC.text != next.password) {
+        _passC.text = next.password;
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _profileSub.close();
     _userC.dispose();
     _passC.dispose();
     super.dispose();
@@ -56,48 +66,38 @@ void initState() {
     final state = ref.watch(profileViewModelProvider);
     final vm = ref.read(profileViewModelProvider.notifier);
 
-    // keep controllers in sync (without fighting user typing)
-    ref.listen(profileViewModelProvider, (prev, next) {
-      if (prev?.username != next.username && _userC.text != next.username) {
-        _userC.text = next.username;
-      }
-      if (prev?.password != next.password && _passC.text != next.password) {
-        _passC.text = next.password;
-      }
-    });
-
     Future<void> _confirmLogOut(
-    BuildContext context, {
-    required String title,
-    required String message,
-    required VoidCallback onYes,
-  }) async {
-    final t = Theme.of(context).textTheme;
+      BuildContext context, {
+      required String title,
+      required String message,
+      required VoidCallback onYes,
+    }) async {
+      final t = Theme.of(context).textTheme;
 
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title, style: t.titleLarge),
-        content: Text(message, style: t.bodyMedium),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text("Cancel"),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(
-              "Log Out",
-              style: t.labelLarge?.copyWith(color: AppColors.white),
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(title, style: t.titleLarge),
+          content: Text(message, style: t.bodyMedium),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text("Cancel"),
             ),
-          ),
-        ],
-      ),
-    );
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(
+                "Log Out",
+                style: t.labelLarge?.copyWith(color: AppColors.white),
+              ),
+            ),
+          ],
+        ),
+      );
 
-    if (ok == true) onYes();
-  }
+      if (ok == true) onYes();
+    }
 
     return Scaffold(
       backgroundColor: AppColors.white,
@@ -106,7 +106,10 @@ void initState() {
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
-        title: Text("Profile", style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+        title: Text(
+          "Profile",
+          style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+        ),
       ),
       body: SafeArea(
         child: ListView(
@@ -115,6 +118,7 @@ void initState() {
             state.isLoading
                 ? const _TopCardShimmer()
                 : _TopCard(
+                  image: state.image,
                     username: state.username,
                     imageFile: state.imageFile,
                     isEditing: state.isEditing,
@@ -124,13 +128,14 @@ void initState() {
             const SizedBox(height: 14),
 
             // inline edit fields (no navigation)
-              if (!state.isLoading) ...[
+            if (!state.isLoading) ...[
               AnimatedCrossFade(
                 duration: const Duration(milliseconds: 220),
                 crossFadeState: state.isEditing
                     ? CrossFadeState.showFirst
                     : CrossFadeState.showSecond,
                 firstChild: _EditSection(
+                  errorText: state.error,
                   usernameController: _userC,
                   passwordController: _passC,
                   onUsernameChanged: vm.setUsername,
@@ -159,14 +164,16 @@ void initState() {
             //   title: "Order History",
             //   onTap: () {},
             // ),
-
             const SizedBox(height: 14),
 
             // AD placeholder (you said you'll handle ad yourself)
             const _AdPlaceholder(),
 
             const SizedBox(height: 14),
-            NativeAdWidget(zoneId: dotenv.env['TAPSELL_ZONE_ID']!, factoryId: ""),
+            NativeAdWidget(
+              zoneId: dotenv.env['TAPSELL_ZONE_ID']!,
+              factoryId: "",
+            ),
 
             // _ActionRow(
             //   icon: Icons.help_outline_rounded,
@@ -179,7 +186,6 @@ void initState() {
             //   title: "Settings",
             //   onTap: () {},
             // ),
-
             const SizedBox(height: 14),
 
             if (state.error != null) ...[
@@ -194,16 +200,16 @@ void initState() {
             GestureDetector(
               onTap: () {
                 _confirmLogOut(
-                context,
-                title: "Log out",
-                message:
-                    "You will be logged out of the application and need to log in again for using this application. Continue",
-                onYes: () {
-                  TokenStore.clearTokens();
-                  var route = AppRoutes.fade(LoginPage());
-                  NavigationService.popAllAndPush(route);
-                },
-              );
+                  context,
+                  title: "Log out",
+                  message:
+                      "You will be logged out of the application and need to log in again for using this application. Continue",
+                  onYes: () {
+                    TokenStore.clearTokens();
+                    var route = AppRoutes.fade(LoginPage());
+                    NavigationService.popAllAndPush(route);
+                  },
+                );
               },
               child: Container(
                 height: 52,
@@ -215,7 +221,11 @@ void initState() {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.logout_rounded, color: Colors.white, size: 18),
+                      const Icon(
+                        Icons.logout_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         "Log Out",
@@ -244,12 +254,13 @@ class _TopCard extends StatelessWidget {
     required this.imageFile,
     required this.isEditing,
     required this.onEditTap,
-    required this.onPickImage,
+    required this.onPickImage, required this.image,
   });
 
   final String username;
   final File? imageFile;
   final bool isEditing;
+  final String? image;
   final VoidCallback onEditTap;
   final VoidCallback onPickImage;
 
@@ -280,7 +291,9 @@ class _TopCard extends StatelessWidget {
                 CircleAvatar(
                   radius: 26,
                   backgroundColor: const Color(0xFFEFEFEF),
-                  backgroundImage: imageFile != null ? FileImage(imageFile!) : null,
+                  backgroundImage: imageFile != null
+                      ? FileImage(imageFile!)
+                      : NetworkImage(HttpClient.instanceImage + (image ?? "")),
                   child: imageFile == null
                       ? Icon(
                           Icons.person_rounded,
@@ -300,7 +313,11 @@ class _TopCard extends StatelessWidget {
                       shape: BoxShape.circle,
                       border: Border.all(color: AppColors.white, width: 2),
                     ),
-                    child: const Icon(Icons.edit, size: 10, color: AppColors.white),
+                    child: const Icon(
+                      Icons.edit,
+                      size: 10,
+                      color: AppColors.white,
+                    ),
                   ),
                 ),
               ],
@@ -315,16 +332,9 @@ class _TopCard extends StatelessWidget {
                   username.isEmpty ? "—" : username,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: t.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+                  style: t.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  "Online • New Y",
-                  style: t.bodySmall?.copyWith(
-                    color: Colors.black.withOpacity(0.55),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+
               ],
             ),
           ),
@@ -340,7 +350,11 @@ class _TopCard extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.edit_rounded, size: 16, color: Colors.black.withOpacity(0.65)),
+                  Icon(
+                    Icons.edit_rounded,
+                    size: 16,
+                    color: Colors.black.withOpacity(0.65),
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     isEditing ? "Done" : "Edit Profile",
@@ -365,9 +379,11 @@ class _EditSection extends StatelessWidget {
     required this.passwordController,
     required this.onUsernameChanged,
     required this.onPasswordChanged,
+    required this.errorText,
   });
 
   final TextEditingController usernameController;
+  final String? errorText;
   final TextEditingController passwordController;
   final ValueChanged<String> onUsernameChanged;
   final ValueChanged<String> onPasswordChanged;
@@ -377,29 +393,33 @@ class _EditSection extends StatelessWidget {
     final t = Theme.of(context).textTheme;
 
     InputDecoration deco(String hint) => InputDecoration(
-          hintText: hint,
-          hintStyle: t.bodyMedium?.copyWith(color: Colors.black.withOpacity(0.35)),
-          filled: true,
-          fillColor: const Color(0xFFF4F4F4),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: Colors.black.withOpacity(0.06)),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: Colors.black.withOpacity(0.06)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: AppColors.primary.withOpacity(0.65)),
-          ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        );
+      hintText: hint,
+      hintStyle: t.bodyMedium?.copyWith(color: Colors.black.withOpacity(0.35)),
+      filled: true,
+      errorText: errorText,
+      fillColor: const Color(0xFFF4F4F4),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: Colors.black.withOpacity(0.06)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: Colors.black.withOpacity(0.06)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: AppColors.primary.withOpacity(0.65)),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text("Username", style: t.labelLarge?.copyWith(fontWeight: FontWeight.w800)),
+        Text(
+          "Username",
+          style: t.labelLarge?.copyWith(fontWeight: FontWeight.w800),
+        ),
         const SizedBox(height: 8),
         TextField(
           controller: usernameController,
@@ -461,8 +481,10 @@ class _ActionRow extends StatelessWidget {
                 ),
               ),
             ),
-            Icon(Icons.chevron_right_rounded,
-                color: Colors.black.withOpacity(0.4)),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: Colors.black.withOpacity(0.4),
+            ),
           ],
         ),
       ),
@@ -509,15 +531,16 @@ class _AdPlaceholder extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          
+
           Container(
             height: 150,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
               color: AppColors.primary,
-              image: DecorationImage(image: AssetImage(
-                'assets/download.jpg'
-              ), fit: BoxFit.cover)
+              image: DecorationImage(
+                image: AssetImage('assets/download.jpg'),
+                fit: BoxFit.cover,
+              ),
             ),
             // child: Center(
             //   child: Text(

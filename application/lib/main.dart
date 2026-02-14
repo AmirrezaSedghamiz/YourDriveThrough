@@ -24,7 +24,6 @@ Future<void> main() async {
   await SharedPreferencesManager.instance.init();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await dotenv.load(fileName: ".env");
-  ManagerRepo().getMenu(restaurantId: 20);
   try {
     await TapsellPlus.instance.initialize(dotenv.env['TAPSELL_KEY'] ?? "");
     await TapsellPlus.instance.setGDPRConsent(true);

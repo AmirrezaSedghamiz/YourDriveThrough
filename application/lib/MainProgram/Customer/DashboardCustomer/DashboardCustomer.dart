@@ -2,6 +2,7 @@ import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
 import 'package:application/Handlers/Repository/OrderRepo.dart';
 import 'package:application/MainProgram/Customer/DashboardCustomer/DashboardCustomerViewModel.dart';
 import 'package:application/MainProgram/Customer/MainPage/MainPage.dart';
+import 'package:application/MainProgram/Customer/MapPage/Map.dart';
 import 'package:application/MainProgram/Customer/OrderingPage/OrderingPage.dart';
 import 'package:application/MainProgram/Customer/Profile/Profile.dart';
 import 'package:flutter/cupertino.dart';
@@ -62,7 +63,7 @@ class _DashboardCustomerState extends ConsumerState<DashboardCustomer> {
           },
           children: [
             CustomerHomePage(),
-            const SizedBox(),
+            ClosestRestaurantsPage(),
             UserOrderHistory(fetchPage: OrderRepo().getOrderList),
             ProfilePage()  
           ],

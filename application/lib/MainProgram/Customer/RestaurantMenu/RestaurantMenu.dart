@@ -1,7 +1,10 @@
 // RestaurantMenu.dart
 import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
 import 'package:application/GlobalWidgets/NavigationServices/NavigationService.dart';
+import 'package:application/GlobalWidgets/NavigationServices/RouteFactory.dart';
 import 'package:application/GlobalWidgets/ReusableComponents/AppBar.dart';
+import 'package:application/MainProgram/Customer/DashboardCustomer/DashboardCustomer.dart';
+import 'package:application/MainProgram/Customer/MainPage/MainPage.dart';
 import 'package:application/MainProgram/Customer/RestaurantMenu/OrderViewModel.dart';
 import 'package:application/MainProgram/Manager/DashboardManager/DashboardManager.dart';
 import 'package:application/SourceDesign/Models/Item.dart';
@@ -10,7 +13,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'RestaurantMenuViewModel.dart';
 
 class RestaurantMenu extends ConsumerStatefulWidget {
-  const RestaurantMenu({super.key, required this.restaurantId, required this.restaurantName});
+  const RestaurantMenu({
+    super.key,
+    required this.restaurantId,
+    required this.restaurantName,
+  });
   final int restaurantId;
   final String restaurantName;
 
@@ -57,8 +64,9 @@ class _RestaurantMenuState extends ConsumerState<RestaurantMenu> {
 
     return Scaffold(
       appBar: AppAppBar(
-        backgroundColor: state.selectedItem != null ? Colors.black.withOpacity(0.35) :
-        AppColors.background,
+        backgroundColor: state.selectedItem != null
+            ? Colors.black.withOpacity(0.35)
+            : AppColors.background,
         leading: GestureDetector(
           onTap: () {
             NavigationService.pop();
@@ -383,13 +391,21 @@ class _OrdersSheet extends ConsumerWidget {
                               final ok = await _confirmFinalize(context);
                               if (ok == true) {
                                 await orderVm.finalizeOrder();
-                                if (context.mounted) Navigator.pop(context);
+                                if (context.mounted) {
+                                  NavigationService.popAllAndPush(
+                                    AppRoutes.fade(
+                                      DashboardCustomer(initialPage: 0),
+                                    ),
+                                  );
+                                }
                               }
                             },
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
-                          color: order.submittedOrders.isEmpty ? Colors.grey : Colors.black,
+                          color: order.submittedOrders.isEmpty
+                              ? Colors.grey
+                              : Colors.black,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Center(
@@ -471,7 +487,7 @@ class _Header extends StatelessWidget {
         const SizedBox(height: 8),
         Row(
           children: [
-            Icon(
+            if(rating != 0 ) ... [Icon(
               Icons.star_rounded,
               size: 16,
               color: Colors.black.withOpacity(0.7),
@@ -483,7 +499,7 @@ class _Header extends StatelessWidget {
                 color: Colors.black.withOpacity(0.7),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 12),],
             Text(
               "Available",
               style: t.bodySmall?.copyWith(
@@ -642,24 +658,24 @@ class _MenuRow extends StatelessWidget {
           const SizedBox(width: 10),
 
           // image placeholder (use your URL later)
-          Container(
-            width: 62,
-            height: 62,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF4F4F4),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.black.withOpacity(0.06)),
-            ),
-            child: item.image == null
-                ? Icon(
-                    Icons.fastfood_rounded,
-                    color: Colors.black.withOpacity(0.35),
-                  )
-                : ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(item.image!, fit: BoxFit.cover),
-                  ),
-          ),
+          // Container(
+          //   width: 62,
+          //   height: 62,
+          //   decoration: BoxDecoration(
+          //     color: const Color(0xFFF4F4F4),
+          //     borderRadius: BorderRadius.circular(12),
+          //     border: Border.all(color: Colors.black.withOpacity(0.06)),
+          //   ),
+          //   child: item.image == null
+          //       ? Icon(
+          //           Icons.fastfood_rounded,
+          //           color: Colors.black.withOpacity(0.35),
+          //         )
+          //       : ClipRRect(
+          //           borderRadius: BorderRadius.circular(12),
+          //           child: Image.network(item.image!, fit: BoxFit.cover),
+          //         ),
+          // ),
           const SizedBox(width: 10),
 
           GestureDetector(

@@ -64,8 +64,6 @@ class OrderViewModel extends Notifier<OrderState> {
     try {
       state = state.copyWith(isSubmitting: true, clearError: true);
 
-      // TODO: call your API to finalize all submitted orders or the latest one
-      // await OrderRepo().finalize(...);
       List<Map<int, int>> orders = [];
       for (var i in state.submittedOrders) {
         for (var j in i.lines) {
@@ -74,13 +72,14 @@ class OrderViewModel extends Notifier<OrderState> {
       }
       final loc = await LocationService().getUserLocation();
       if (loc.data == null) return;
-      
+
       final data = await OrderRepo().orderItems(
         restaurantId: state.submittedOrders[0].restaurantId,
         latitude: loc.data!.latitude!,
         longitude: loc.data!.longitude!,
         items: orders,
       );
+      clearDraft();
       state = state.copyWith(isSubmitting: false);
     } catch (e) {
       state = state.copyWith(isSubmitting: false, error: '$e');

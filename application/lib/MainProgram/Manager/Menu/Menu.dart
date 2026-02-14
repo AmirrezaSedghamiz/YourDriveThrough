@@ -1,11 +1,14 @@
 // RestaurantSettings.dart
+
 import 'dart:io';
 
 import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
+import 'package:application/GlobalWidgets/InternetManager/HttpClient.dart';
 import 'package:application/GlobalWidgets/NavigationServices/NavigationService.dart';
 import 'package:application/GlobalWidgets/NavigationServices/RouteFactory.dart';
 import 'package:application/GlobalWidgets/PermissionHandlers/ImagePickerService.dart';
 import 'package:application/GlobalWidgets/ReusableComponents/TapContainers.dart';
+import 'package:application/GlobalWidgets/Services/Map.dart';
 import 'package:application/Handlers/TokenHandler.dart';
 import 'package:application/MainProgram/Login/Login.dart';
 import 'package:application/MainProgram/Manager/Menu/MenuState.dart';
@@ -14,9 +17,18 @@ import 'package:application/SourceDesign/Models/Category.dart';
 import 'package:application/SourceDesign/Models/Item.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:location/location.dart';
 
 class RestaurantSettings extends ConsumerStatefulWidget {
-  const RestaurantSettings({super.key});
+  const RestaurantSettings({
+    super.key,
+    required this.callback,
+    required this.restaurantId, // ✅ pass id to load from backend
+  });
+
+  final VoidCallback callback;
+  final int restaurantId;
 
   @override
   ConsumerState<RestaurantSettings> createState() => _RestaurantSettingsState();
@@ -25,39 +37,24 @@ class RestaurantSettings extends ConsumerStatefulWidget {
 class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
     with AutomaticKeepAliveClientMixin<RestaurantSettings> {
   late final TextEditingController _nameController;
+  File? _pickedImage;
+  ProviderSubscription<RestaurantSettingsState>? _sub;
 
   @override
   void initState() {
     super.initState();
-  }
 
-  @override
-  void dispose() {
-    // Might not be initialized if widget disposed very fast
-    try {
-      _nameController.dispose();
-    } catch (_) {}
-    super.dispose();
-  }
+    _nameController = TextEditingController();
 
-  File? image;
-
-  @override
-  Widget build(BuildContext context) {
-    super.build(context);
-    final t = Theme.of(context).textTheme;
-    final state = ref.watch(restaurantSettingsViewModelProvider);
-    final vm = ref.read(restaurantSettingsViewModelProvider.notifier);
-    // initialize from state after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final s = ref.read(restaurantSettingsViewModelProvider);
-      _nameController = TextEditingController(text: s.restaurantName);
+      ref
+          .read(restaurantSettingsViewModelProvider.notifier)
+          .init(widget.restaurantId);
+    });
 
-      // snack/errors
-      ref.listen<RestaurantSettingsState>(restaurantSettingsViewModelProvider, (
-        prev,
-        next,
-      ) {
+    _sub = ref.listenManual<RestaurantSettingsState>(
+      restaurantSettingsViewModelProvider,
+      (prev, next) {
         final msg = next.snackBarMessage;
         if (msg != null && msg.isNotEmpty) {
           ScaffoldMessenger.of(
@@ -65,19 +62,40 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
           ).showSnackBar(SnackBar(content: Text(msg)));
           ref.read(restaurantSettingsViewModelProvider.notifier).clearSnack();
         }
+
         final err = next.errorMessage;
-        if (err != null && err.isNotEmpty) {
+        if (err != null && err.isNotEmpty && err != prev?.errorMessage) {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text(err)));
         }
 
-        // keep controller in sync if you ever load from API later
-        if (_nameController.text != next.restaurantName) {
-          _nameController.text = next.restaurantName;
+        final newName = next.restaurantName ?? "";
+        if (_nameController.text != newName) {
+          _nameController.text = newName;
+          _nameController.selection = TextSelection.collapsed(
+            offset: _nameController.text.length,
+          );
         }
-      });
-    });
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _sub?.close();
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+
+    final t = Theme.of(context).textTheme;
+    final state = ref.watch(restaurantSettingsViewModelProvider);
+    final vm = ref.read(restaurantSettingsViewModelProvider.notifier);
+
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(
         parent: AlwaysScrollableScrollPhysics(),
@@ -85,7 +103,7 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
       child: Column(
         children: [
-          // ---------- Profile (Image + Name + Location) ----------
+          // ---------- Profile ----------
           _SectionCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -96,24 +114,25 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
                 ),
                 const SizedBox(height: 10),
 
-                // Image + button
-                Row(
-                  children: [
-                    _ImageCircle(
-                      file: state.restaurantImageFile,
-                      imageUrl: state.restaurantImageUrl,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: SizedBox(
+                if (state.isLoadingProfile) ...[
+                  const _ProfileShimmer(),
+                ] else ...[
+                  Row(
+                    children: [
+                      _ImageCircle(
+                        file:  state.restaurantImageFile,
+                        imageUrl: HttpClient.instanceImage + (state.restaurantImageUrl ?? ""),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
                         child: OutlinedButton.icon(
                           onPressed: () async {
-                            ImagePickerService imagePicker = ImagePickerService(
-                              context: context,
-                            );
-                            await imagePicker.pickImage().then((value) {
-                              image = imagePicker.image;
-                            });
+                            final picker = ImagePickerService(context: context);
+
+                            // ✅ Prototype call (see ImagePickerService prototype below)
+                            await picker.pickImage();
+                            _pickedImage = picker.image;
+                            vm.setRestaurantImageFile(picker.image);
                           },
                           icon: const Icon(
                             Icons.photo_camera_outlined,
@@ -131,153 +150,126 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 12),
-
-                // Name
-                Text(
-                  "Restaurant Name",
-                  style: t.bodySmall?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: TextEditingController(text: state.restaurantName)
-                    ..selection = TextSelection.collapsed(
-                      offset: state.restaurantName.length,
-                    ),
-                  onChanged: vm.setRestaurantName,
-                  decoration: InputDecoration(
-                    hintText: "Enter restaurant name",
-                    filled: true,
-                    fillColor: const Color(0xFFF7F7F7),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFEAEAEA)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFEAEAEA)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: AppColors.primary),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 14),
-
-                Text(
-                  "Location Changer",
-                  style: t.titleSmall?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  "Manage your restaurant's physical location and\ndelivery radius.",
-                  style: t.bodySmall?.copyWith(
-                    color: Colors.black.withOpacity(0.55),
-                    height: 1.25,
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                Text(
-                  "Current Address",
-                  style: t.bodySmall?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF7F7F7),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFEAEAEA)),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 12,
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.location_on_outlined,
-                        color: Colors.black.withOpacity(0.55),
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          state.currentAddress,
-                          style: t.bodyMedium?.copyWith(
-                            color: Colors.black.withOpacity(0.75),
-                          ),
-                        ),
-                      ),
                     ],
                   ),
-                ),
 
-                const SizedBox(height: 10),
+                  const SizedBox(height: 12),
 
-                Center(
-                  child: TextButton.icon(
-                    onPressed: () async {
-                      // YOU will handle map picker; then call vm.setAddress(...)
-                      vm.setAddress("456 New Street, Anytown, CA 90210");
-                    },
-                    icon: Icon(
-                      Icons.edit_location_alt_outlined,
-                      color: Colors.black.withOpacity(0.7),
-                    ),
-                    label: Text("Change Location", style: t.labelLarge),
+                  Text(
+                    "Restaurant Name",
+                    style: t.bodySmall?.copyWith(fontWeight: FontWeight.w700),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _nameController,
+                    onChanged: vm.setRestaurantName,
+                    decoration: InputDecoration(
+                      hintText: "Enter restaurant name",
+                      filled: true,
+                      fillColor: const Color(0xFFF7F7F7),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFEAEAEA)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFEAEAEA)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: AppColors.primary),
+                      ),
+                    ),
+                  ),
 
-                // const SizedBox(height: 12),
+                  const SizedBox(height: 14),
 
-                // Row(
-                //   children: [
-                //     Expanded(
-                //       child: Text(
-                //         "Geofence Radius",
-                //         style: t.bodySmall?.copyWith(
-                //           fontWeight: FontWeight.w700,
-                //         ),
-                //       ),
-                //     ),
-                //     Text(
-                //       "${state.geofenceRadius.round()}m",
-                //       style: t.bodySmall?.copyWith(fontWeight: FontWeight.w700),
-                //     ),
-                //   ],
-                // ),
+                  Text(
+                    "Location Changer",
+                    style: t.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    "Manage your restaurant's physical location and\ndelivery radius.",
+                    style: t.bodySmall?.copyWith(
+                      color: Colors.black.withOpacity(0.55),
+                      height: 1.25,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
 
-                // SliderTheme(
-                //   data: SliderTheme.of(context).copyWith(
-                //     activeTrackColor: AppColors.primary,
-                //     inactiveTrackColor: Colors.black.withOpacity(0.10),
-                //     thumbColor: AppColors.primary,
-                //     overlayColor: AppColors.primary.withOpacity(0.10),
-                //     trackHeight: 3,
-                //   ),
-                //   child: Slider(
-                //     value: state.geofenceRadius,
-                //     min: 50,
-                //     max: 2000,
-                //     onChanged: vm.setGeofenceRadius,
-                //   ),
-                // ),
-                const SizedBox(height: 8),
+                  Text(
+                    "Current Address",
+                    style: t.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF7F7F7),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFEAEAEA)),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_outlined,
+                          color: Colors.black.withOpacity(0.55),
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            state.currentAddress ?? "",
+                            style: t.bodyMedium?.copyWith(
+                              color: Colors.black.withOpacity(0.75),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
 
-                AppTapButton(
-                  text: "Submit Profile",
-                  isLoading: state.isSavingProfile,
-                  onTap: state.isSavingProfile ? null : vm.submitProfileChanges,
-                  backgroundColor: AppColors.primary,
-                  textColor: AppColors.white,
-                ),
+                  const SizedBox(height: 10),
+
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: () async {
+                        var route = AppRoutes.fade(
+                          MapBuilder(
+                            username: "",
+                            callBackFunction:
+                                (String address, LatLng loc) {
+                                  vm.setAddress(address);
+                                  vm.setLocationCoords();
+                                },
+                          ),
+                        );
+                        NavigationService.push(route);
+                      },
+                      icon: Icon(
+                        Icons.edit_location_alt_outlined,
+                        color: Colors.black.withOpacity(0.7),
+                      ),
+                      label: Text("Change Location", style: t.labelLarge),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  AppTapButton(
+                    text: "Submit Profile",
+                    isLoading: state.isSavingProfile,
+                    onTap: state.isSavingProfile
+                        ? null
+                        : vm.submitProfileChanges,
+                    backgroundColor: AppColors.primary,
+                    textColor: AppColors.white,
+                  ),
+                ],
               ],
             ),
           ),
@@ -303,68 +295,75 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
                 ),
                 const SizedBox(height: 12),
 
-                // Categories list
-                ...state.categories.map(
-                  (c) => _CategoryTile(
-                    category: c,
-                    expanded: state.expandedCategoryId == c.id,
-                    onToggle: () => vm.setExpandedCategory(
-                      state.expandedCategoryId == c.id ? null : c.id,
-                    ),
-                    onEdit: () => _editCategoryDialog(context, c, vm),
-                    onDelete: () => _confirmDelete(
-                      context,
-                      title: "Delete category?",
-                      message:
-                          "This will delete '${c.name}' and all its items.",
-                      onYes: () => vm.deleteCategory(c.id),
-                    ),
-                    onAddItem: () =>
-                        _addOrEditItemSheet(context, vm, categoryId: c.id),
-                    onEditItem: (item) => _addOrEditItemSheet(
-                      context,
-                      vm,
-                      categoryId: c.id,
-                      existing: item,
-                    ),
-                    onDeleteItem: (item) => _confirmDelete(
-                      context,
-                      title: "Delete item?",
-                      message: "Delete '${item.name}' from '${c.name}'?",
-                      onYes: () => vm.deleteItem(c.id, item.id),
-                    ),
-                  ),
-                ),
-
-
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => _addCategoryDialog(context, vm),
-                    icon: const Icon(Icons.add),
-                    label: const Text("Add New Category"),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.black.withOpacity(0.8),
-                      side: BorderSide(color: Colors.black.withOpacity(0.12)),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                if (state.isLoadingMenu) ...[
+                  const _MenuShimmer(count: 3),
+                ] else ...[
+                  ...state.categories.map(
+                    (c) => KeyedSubtree(
+                      key: ValueKey('cat_${c.id}'),
+                      child: _CategoryTile(
+                        category: c,
+                        expanded: state.expandedCategoryId == c.id,
+                        onToggle: () => vm.setExpandedCategory(
+                          state.expandedCategoryId == c.id ? null : c.id,
+                        ),
+                        onEdit: () => _editCategoryDialog(context, c, vm),
+                        onDelete: () => _confirmDelete(
+                          context,
+                          title: "Delete category?",
+                          message:
+                              "This will delete '${c.name}' and all its items.",
+                          onYes: () => vm.deleteCategory(c.id),
+                        ),
+                        onAddItem: () =>
+                            _addOrEditItemSheet(context, vm, categoryId: c.id),
+                        onEditItem: (item) => _addOrEditItemSheet(
+                          context,
+                          vm,
+                          categoryId: c.id,
+                          existing: item,
+                        ),
+                        onDeleteItem: (item) => _confirmDelete(
+                          context,
+                          title: "Delete item?",
+                          message: "Delete '${item.name}' from '${c.name}'?",
+                          onYes: () => vm.deleteItem(c.id, item.id),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
 
-                AppTapButton(
-                  text: "Submit Menu",
-                  isLoading: state.isSavingMenu,
-                  onTap: state.isSavingMenu ? null : vm.submitMenuChanges,
-                  backgroundColor: AppColors.primary,
-                  textColor: AppColors.white,
-                ),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _addCategoryDialog(context, vm),
+                      icon: const Icon(Icons.add),
+                      label: const Text("Add New Category"),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.black.withOpacity(0.8),
+                        side: BorderSide(color: Colors.black.withOpacity(0.12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  AppTapButton(
+                    text: "Submit Menu",
+                    isLoading: state.isSavingMenu,
+                    onTap: state.isSavingMenu ? null : vm.submitMenuChanges,
+                    backgroundColor: AppColors.primary,
+                    textColor: AppColors.white,
+                  ),
+                ],
               ],
             ),
           ),
+
           const SizedBox(height: 12),
+
           AppTapButton(
             text: "Log Out",
             onTap: () {
@@ -375,7 +374,7 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
                     "You will be logged out of the application and need to log in again for using this application. Continue",
                 onYes: () {
                   TokenStore.clearTokens();
-                  var route = AppRoutes.fade(LoginPage());
+                  final route = AppRoutes.fade(LoginPage());
                   NavigationService.popAllAndPush(route);
                 },
               );
@@ -387,6 +386,8 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
       ),
     );
   }
+
+  // ---------------- dialogs / helpers ----------------
 
   Future<void> _confirmDelete(
     BuildContext context, {
@@ -703,6 +704,14 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
   bool get wantKeepAlive => true;
 }
 
+// ✅ prototype address picker (replace with your map UI)
+Future<String?> _fakePickAddress(
+  BuildContext context, {
+  String? initial,
+}) async {
+  return "456 New Street, Anytown, CA 90210";
+}
+
 class _CategoryTile extends StatelessWidget {
   const _CategoryTile({
     required this.category,
@@ -767,9 +776,8 @@ class _CategoryTile extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
 
-                  // ✅ Animated Chevron Rotation
                   AnimatedRotation(
-                    turns: expanded ? 0.5 : 0.0, // 180deg when expanded
+                    turns: expanded ? 0.5 : 0.0,
                     duration: const Duration(milliseconds: 220),
                     curve: Curves.easeOutCubic,
                     child: Icon(
@@ -793,7 +801,6 @@ class _CategoryTile extends StatelessWidget {
             ),
           ),
 
-          // ✅ Animated expand/collapse content
           AnimatedCrossFade(
             duration: const Duration(milliseconds: 240),
             reverseDuration: const Duration(milliseconds: 180),
@@ -869,7 +876,6 @@ class _CategoryTile extends StatelessWidget {
                         ),
                       ),
 
-                      // Add item button as a tap container
                       AppTapRowButton(
                         text: "Add Item",
                         icon: Icons.add,
@@ -950,6 +956,212 @@ class _SectionCard extends StatelessWidget {
       ),
       padding: const EdgeInsets.all(14),
       child: child,
+    );
+  }
+}
+
+// ---------- Shimmer (no package) ----------
+
+class _Shimmer extends StatefulWidget {
+  const _Shimmer({
+    required this.child,
+    this.period = const Duration(milliseconds: 1200),
+  });
+
+  final Widget child;
+  final Duration period;
+
+  @override
+  State<_Shimmer> createState() => _ShimmerState();
+}
+
+class _ShimmerState extends State<_Shimmer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(vsync: this, duration: widget.period)..repeat();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // base colors
+    final base = Colors.black.withOpacity(0.06);
+    final highlight = Colors.black.withOpacity(0.14);
+
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (_, __) {
+        return ShaderMask(
+          blendMode: BlendMode.srcATop,
+          shaderCallback: (rect) {
+            final t = _c.value; // 0..1
+            final dx = rect.width * (t * 2 - 1); // -w..+w
+            return LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [base, highlight, base],
+              stops: const [0.1, 0.5, 0.9],
+              transform: _SlidingGradientTransform(dx),
+            ).createShader(rect);
+          },
+          child: widget.child,
+        );
+      },
+    );
+  }
+}
+
+class _SlidingGradientTransform extends GradientTransform {
+  const _SlidingGradientTransform(this.slideX);
+  final double slideX;
+
+  @override
+  Matrix4 transform(Rect bounds, {TextDirection? textDirection}) {
+    return Matrix4.translationValues(slideX, 0.0, 0.0);
+  }
+}
+
+class _Skel extends StatelessWidget {
+  const _Skel({
+    this.h = 12,
+    this.w,
+    this.r = 12,
+    this.shape = BoxShape.rectangle,
+  });
+
+  final double h;
+  final double? w;
+  final double r;
+  final BoxShape shape;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: w,
+      height: h,
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.08),
+        shape: shape,
+        borderRadius: shape == BoxShape.circle
+            ? null
+            : BorderRadius.circular(r),
+      ),
+    );
+  }
+}
+
+// ---------- Profile shimmer block ----------
+class _ProfileShimmer extends StatelessWidget {
+  const _ProfileShimmer();
+
+  @override
+  Widget build(BuildContext context) {
+    return _Shimmer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          _Skel(h: 18, w: 170, r: 8),
+          SizedBox(height: 14),
+
+          Row(
+            children: [
+              _Skel(h: 64, w: 64, shape: BoxShape.circle),
+              SizedBox(width: 12),
+              Expanded(child: _Skel(h: 44, r: 12)),
+            ],
+          ),
+
+          SizedBox(height: 14),
+          _Skel(h: 12, w: 120, r: 8),
+          SizedBox(height: 10),
+          _Skel(h: 48, r: 12),
+
+          SizedBox(height: 18),
+          _Skel(h: 14, w: 140, r: 8),
+          SizedBox(height: 10),
+          _Skel(h: 12, w: 220, r: 8),
+          SizedBox(height: 6),
+          _Skel(h: 12, w: 200, r: 8),
+
+          SizedBox(height: 14),
+          _Skel(h: 12, w: 120, r: 8),
+          SizedBox(height: 10),
+          _Skel(h: 46, r: 12),
+
+          SizedBox(height: 14),
+          Align(alignment: Alignment.center, child: _Skel(h: 18, w: 160, r: 8)),
+
+          SizedBox(height: 16),
+          _Skel(h: 46, r: 12),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------- Menu shimmer block ----------
+class _MenuShimmer extends StatelessWidget {
+  const _MenuShimmer({this.count = 3});
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Shimmer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _Skel(h: 18, w: 140, r: 8),
+          const SizedBox(height: 10),
+          const _Skel(h: 12, w: 260, r: 8),
+          const SizedBox(height: 6),
+          const _Skel(h: 12, w: 220, r: 8),
+          const SizedBox(height: 14),
+
+          ...List.generate(count, (i) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFEAEAEA)),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x0C000000),
+                      blurRadius: 10,
+                      offset: Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: const [
+                    Expanded(child: _Skel(h: 14, w: 160, r: 8)),
+                    SizedBox(width: 12),
+                    _Skel(h: 12, w: 60, r: 8),
+                    SizedBox(width: 12),
+                    _Skel(h: 18, w: 18, r: 6),
+                  ],
+                ),
+              ),
+            );
+          }),
+
+          const SizedBox(height: 4),
+          const _Skel(h: 44, r: 12), // add category button
+          const SizedBox(height: 12),
+          const _Skel(h: 46, r: 12), // submit menu
+        ],
+      ),
     );
   }
 }
