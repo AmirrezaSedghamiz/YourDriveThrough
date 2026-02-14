@@ -1,7 +1,9 @@
 // RestaurantSettings.dart
+
 import 'dart:io';
 
 import 'package:application/GlobalWidgets/AppTheme/Colors.dart';
+import 'package:application/GlobalWidgets/InternetManager/HttpClient.dart';
 import 'package:application/GlobalWidgets/NavigationServices/NavigationService.dart';
 import 'package:application/GlobalWidgets/NavigationServices/RouteFactory.dart';
 import 'package:application/GlobalWidgets/PermissionHandlers/ImagePickerService.dart';
@@ -118,8 +120,8 @@ class _RestaurantSettingsState extends ConsumerState<RestaurantSettings>
                   Row(
                     children: [
                       _ImageCircle(
-                        file: state.restaurantImageFile,
-                        imageUrl: state.restaurantImageUrl,
+                        file:  state.restaurantImageFile,
+                        imageUrl: HttpClient.instanceImage + (state.restaurantImageUrl ?? ""),
                       ),
                       const SizedBox(width: 12),
                       Expanded(

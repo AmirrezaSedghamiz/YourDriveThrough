@@ -176,7 +176,7 @@ class _DashboardManagerState extends ConsumerState<DashboardManager>
             PendingOrdersPagedList(
               fetchPage: OrderRepo().getOrderList,
               onAccept: (order) => OrderRepo().updateStatus(newStatus: 'accepted', orderId: order.id),
-              onDecline: (order) => OrderRepo().updateStatus(newStatus: 'canceled', orderId: order.id),
+              onDecline: (order) => OrderRepo().updateStatus(newStatus: 'failed', orderId: order.id),
               pageSize: 10,
               firstPageKey: 1,
             ),

@@ -688,7 +688,7 @@ class _SearchResultsStripState extends State<_SearchResultsStrip> {
                 ),
                 const SizedBox(height: 10),
         SizedBox(
-          height: 300,
+          height: 250,
           child: PagedListView<int, RestaurantInfo>.separated(
             pagingController: pc,
             scrollDirection: Axis.horizontal,

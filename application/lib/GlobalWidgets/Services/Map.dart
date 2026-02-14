@@ -162,6 +162,14 @@ class _MapBuilderState extends State<MapBuilder> {
                     'reverse?lat=${selectedLocation!.latitude}&lng=${selectedLocation!.longitude}',
                     options: HttpClient.globalHeader,
                   );
+                  if (widget.callBackFunction != null) {
+                    widget.callBackFunction!(
+                      address.data['formatted_address'],
+                      selectedLocation!,
+                    );
+                    NavigationService.pop();
+                    return;
+                  }
                   await ManagerRepo()
                       .fillRestaurantProfile(
                         username: widget.username,
@@ -174,11 +182,6 @@ class _MapBuilderState extends State<MapBuilder> {
                       )
                       .then((value) {
                         if (value == ConnectionStates.Success) {
-                          if (widget.callBackFunction != null) {
-                            widget.callBackFunction!(address.data['formatted_address'],
-                             selectedLocation!).call();
-                            NavigationService.pop();
-                          }
                           WidgetsBinding.instance.addPostFrameCallback((_) {
                             NavigationService.popAllAndPush(
                               AppRoutes.fade(DashboardManager(initialPage: 0)),

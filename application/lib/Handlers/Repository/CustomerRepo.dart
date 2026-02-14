@@ -317,4 +317,83 @@ class CustomerRepo {
       'search': query,
     });
   }
+  ////////////////////////////////////////////
+  
+  Future<Response> _getRestaurantListWithTwoCooRRequest(
+    Map<String, dynamic> kwargs,
+  ) async {
+    Options options = Options(
+      followRedirects: false,
+      validateStatus: (status) {
+        return status! < 600;
+      },
+      headers: {'Authorization': await TokenStore.getAccessToken()},
+    );
+    return await HttpClient.instance.post(
+      'restaurant/get_closest2/',
+      options: options,
+      data: {
+        'page_size': kwargs["pageSize"],
+        'page': kwargs["pageIndex"],
+        'lon1': kwargs["longitude1"],
+        'lat1': kwargs["latitude1"],
+        'lon2': kwargs["longitude2"],
+        'lat2': kwargs["latitude2"],
+      },
+    );
+  }
+
+  Future<dynamic> _getRestaurantListWithTwoCooRHandler(Response response) async {
+    if (response.statusCode == 200) {
+      List<RestaurantInfo> restaurants = [];
+      for (var i in response.data['results']) {
+        restaurants.add(RestaurantInfo.fromMap(i));
+      }
+      return restaurants;
+    } else if (response.statusCode == 400) {
+      return ConnectionStates.BadRequest;
+    } else if (response.statusCode == 401) {
+      return ConnectionStates.Unauthorized;
+    } else if (response.statusCode == 404) {
+      return ConnectionStates.TokenFailure;
+    } else {
+      if (response.statusCode == 500) {
+        return ConnectionStates.DataBase;
+      } else if (response.statusCode == 502) {
+        return ConnectionStates.BadGateWay;
+      } else if (response.statusCode == 504) {
+        return ConnectionStates.GateWayTimeOut;
+      } else {
+        return ConnectionStates.Unexpected;
+      }
+    }
+  }
+
+  Future<dynamic> _getRestaurantListWithTwoCooRKwargBuilder(
+    Map<String, dynamic> kwargs,
+  ) async {
+    return handleErrors(
+      kwargs,
+      _getRestaurantListWithTwoCooRRequest,
+      _getRestaurantListWithTwoCooRHandler,
+    );
+  }
+
+  Future<dynamic> getRestaurantListWithTwoCooR({
+    required int pageSize,
+    required int pageKey,
+    required num longitude1,
+    required num latitude1,
+    required num longitude2,
+    required num latitude2,
+  }) {
+    return _getRestaurantListWithTwoCooRKwargBuilder({
+      'pageSize': pageSize,
+      'pageIndex': pageKey,
+      'longitude1': longitude1.abs(),
+      'latitude1': latitude1.abs(),
+      'longitude2': longitude2.abs(),
+      'latitude2': latitude2.abs(),
+    });
+  }
 }

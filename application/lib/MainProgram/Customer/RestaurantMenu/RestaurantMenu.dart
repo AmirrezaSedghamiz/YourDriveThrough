@@ -487,7 +487,7 @@ class _Header extends StatelessWidget {
         const SizedBox(height: 8),
         Row(
           children: [
-            Icon(
+            if(rating != 0 ) ... [Icon(
               Icons.star_rounded,
               size: 16,
               color: Colors.black.withOpacity(0.7),
@@ -499,7 +499,7 @@ class _Header extends StatelessWidget {
                 color: Colors.black.withOpacity(0.7),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 12),],
             Text(
               "Available",
               style: t.bodySmall?.copyWith(
@@ -658,24 +658,24 @@ class _MenuRow extends StatelessWidget {
           const SizedBox(width: 10),
 
           // image placeholder (use your URL later)
-          Container(
-            width: 62,
-            height: 62,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF4F4F4),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.black.withOpacity(0.06)),
-            ),
-            child: item.image == null
-                ? Icon(
-                    Icons.fastfood_rounded,
-                    color: Colors.black.withOpacity(0.35),
-                  )
-                : ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(item.image!, fit: BoxFit.cover),
-                  ),
-          ),
+          // Container(
+          //   width: 62,
+          //   height: 62,
+          //   decoration: BoxDecoration(
+          //     color: const Color(0xFFF4F4F4),
+          //     borderRadius: BorderRadius.circular(12),
+          //     border: Border.all(color: Colors.black.withOpacity(0.06)),
+          //   ),
+          //   child: item.image == null
+          //       ? Icon(
+          //           Icons.fastfood_rounded,
+          //           color: Colors.black.withOpacity(0.35),
+          //         )
+          //       : ClipRRect(
+          //           borderRadius: BorderRadius.circular(12),
+          //           child: Image.network(item.image!, fit: BoxFit.cover),
+          //         ),
+          // ),
           const SizedBox(width: 10),
 
           GestureDetector(

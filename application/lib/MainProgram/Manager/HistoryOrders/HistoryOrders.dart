@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:application/GlobalWidgets/Services/Tapsell.dart';
+import 'package:application/Handlers/Repository/OrderRepo.dart';
 import 'package:application/MainProgram/Manager/PendingOrders/PendingOrders.dart';
 import 'package:application/SourceDesign/Enums/OrderStatus.dart';
 import 'package:flutter/material.dart';
@@ -251,6 +252,26 @@ class _HistoryOrderCardState extends State<_HistoryOrderCard> {
                       ),
                     ),
                     const Spacer(),
+                    IconButton(
+                      onPressed: () async {
+                        final result = await _reportConfirmationDialog(context);
+
+                        if (result?.confirmed == true) {
+                          final description = result!.description;
+
+                          OrderRepo().reportCustomer(
+                            customerId: widget.order.customerId ?? -1,
+                            description: description,
+                          );
+                        }
+                      },
+                      icon: Icon(
+                        Icons.report_outlined,
+                        size: 21,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    SizedBox(width: 6),
                     _StatusChip(label: statusLabel, color: statusColor),
                   ],
                 ),
@@ -395,8 +416,6 @@ class _HistoryOrderCardState extends State<_HistoryOrderCard> {
                         // ),
 
                         // const SizedBox(height: 14),
-                      
-
                         SizedBox(
                           width: double.infinity,
                           height: 50,
@@ -417,6 +436,85 @@ class _HistoryOrderCardState extends State<_HistoryOrderCard> {
                         ),
                       ],
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<({bool confirmed, String description})?> _reportConfirmationDialog(
+    BuildContext context,
+  ) {
+    final t = Theme.of(context).textTheme;
+    final descriptionController = TextEditingController();
+
+    return showDialog<({bool confirmed, String description})>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text("Report issue?", style: t.titleMedium),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Are you sure you want to report this issue? Please provide a short description.",
+              style: t.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: descriptionController,
+              maxLines: 4,
+              minLines: 3,
+              style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              decoration: InputDecoration(
+                hintText: "Describe the issue...",
+                hintStyle: t.bodyMedium?.copyWith(
+                  color: Colors.black.withOpacity(0.35),
+                ),
+                filled: true,
+                fillColor: const Color(0xFFF4F4F4),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.black.withOpacity(0.06)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.black.withOpacity(0.06)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: AppColors.primary),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: Text("Cancel", style: t.labelLarge),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            onPressed: () {
+              final text = descriptionController.text.trim();
+
+              if (text.isEmpty) {
+                // simple inline validation
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Please provide a description."),
+                  ),
+                );
+                return;
+              }
+
+              Navigator.pop(ctx, (confirmed: true, description: text));
+            },
+            child: Text(
+              "Submit Report",
+              style: t.labelLarge?.copyWith(color: AppColors.white),
             ),
           ),
         ],

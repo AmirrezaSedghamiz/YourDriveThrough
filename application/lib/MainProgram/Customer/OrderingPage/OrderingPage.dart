@@ -541,8 +541,6 @@ class _PastOrderCardState extends State<_PastOrderCard> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                _Chip(label: st.label, color: st.color),
-                const SizedBox(height: 10),
                 IconButton(
                   onPressed: () async {
                     final result = await _reportConfirmationDialog(context);
@@ -562,6 +560,8 @@ class _PastOrderCardState extends State<_PastOrderCard> {
                     color: AppColors.primary,
                   ),
                 ),
+                const SizedBox(width: 6),
+                _Chip(label: st.label, color: st.color),
               ],
             ),
             const SizedBox(height: 8),

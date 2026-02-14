@@ -2,6 +2,7 @@
 import 'dart:io';
 
 import 'package:application/GlobalWidgets/InternetManager/ConnectionStates.dart';
+import 'package:application/GlobalWidgets/Services/Map.dart';
 import 'package:application/Handlers/Repository/ManagerRepo.dart';
 import 'package:application/MainProgram/Manager/Menu/MenuState.dart';
 import 'package:application/SourceDesign/Models/Category.dart';
@@ -31,7 +32,6 @@ abstract class RestaurantRepo {
     required List<Category> categories,
   });
 }
-
 
 /// ---------------------------------------------------------------------------
 /// ManagerRepo-backed implementation
@@ -266,11 +266,7 @@ class RestaurantSettingsViewModel extends Notifier<RestaurantSettingsState> {
     state = state.copyWith(latitude: latitude, longitude: longitude);
   }
 
-  Future<void> submitProfileChanges({
-    // You can pass coords from UI/map picker even if not stored in state
-    num? longitude,
-    num? latitude,
-  }) async {
+  Future<void> submitProfileChanges({num? longitude, num? latitude}) async {
     final id = state.restaurantId;
     if (id == null) {
       state = state.copyWith(errorMessage: "Restaurant ID missing.");
@@ -303,16 +299,21 @@ class RestaurantSettingsViewModel extends Notifier<RestaurantSettingsState> {
         address: address,
         radiusMeters: state.geofenceRadius,
         imageFile: state.restaurantImageFile,
-        longitude: longitude,
-        latitude: latitude,
+        longitude: state.longitude,
+        latitude: state.latitude,
+      );
+      await ManagerRepo().fillRestaurantProfile(
+        username: state.restaurantName ?? "",
+        longitude: formatCoordinate(state.longitude!.toDouble()),
+        latitude: formatCoordinate(state.latitude!.toDouble()),
+        image: state.restaurantImageFile,
+        address: state.currentAddress ?? "",
       );
 
       state = state.copyWith(
         isSavingProfile: false,
         snackBarMessage: "Profile updated",
       );
-
-      // Re-fetch so backend becomes source of truth (imageUrl / normalized fields)
       await _loadProfile();
     } catch (e) {
       state = state.copyWith(
